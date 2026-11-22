@@ -1,0 +1,36 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Java / frontend outputs
+**/target/
+**/node_modules/
+**/dist/
+**/coverage/
+**/test-results/
+**/playwright-report/
+/.playwright-mcp/
+*.log
+*.log.*
+
+# Editors and OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Runtime and recordings
+.runtime/
+.data/
+# Local discovery junction; canonical skill files live in agents/skills/.
+/.agents/skills
+*.webm
+*.wav
+*.mp3
