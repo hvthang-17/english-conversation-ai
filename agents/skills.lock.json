@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "canonical_directory": "agents/skills",
+  "tree_hash_algorithm": "SHA-256 of sorted UTF-8 relative-path + NUL + file-sha256 + LF records",
+  "upstream": [
+    {
+      "name": "frontend-design",
+      "repository": "anthropics/skills",
+      "revision": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "source_path": "skills/frontend-design",
+      "file_count": 2,
+      "tree_sha256": "89a6e59de80320a32e8b4c597a329ef3c503f624a2e68874bb0475dfb66dbf4b",
+      "skill_sha256": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3",
+      "local_additions": []
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "repository": "vercel-labs/agent-skills",
+      "revision": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "source_path": "skills/react-best-practices",
+      "file_count": 76,
+      "tree_sha256": "d7518c1ee49dbcf65ad3b1bad40fb5f76d683a326bf83f8f57ce65b0fcc0a28b",
+      "skill_sha256": "3286ace648b4d740317b9c1cb7fbd38600eaacc62a8b57ea5e06fd2992b5582e",
+      "local_additions": []
+    },
+    {
+      "name": "web-design-guidelines",
+      "repository": "vercel-labs/agent-skills",
+      "revision": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "source_path": "skills/web-design-guidelines",
+      "file_count": 1,
+      "tree_sha256": "e1b25ab752d7cbe90593522987e32a8a464231575560400cd0afc947c0d5d905",
+      "skill_sha256": "17e48da905f83a19c174079b50760a98c069527ba50079239b3c187236627c29",
+      "local_additions": []
+    },
+    {
+      "name": "systematic-debugging",
+      "repository": "obra/superpowers",
+      "revision": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "source_path": "skills/systematic-debugging",
+      "file_count": 6,
+      "tree_sha256": "6c632fd9c5189db7f1fb08afb1f5172f932f1c49fca2e8b9477e611632fc8d01",
+      "skill_sha256": "51c6435d98c83c42c96ba7c35725a0b2c376cd487fb1a4e6bd0ddbe7e33ef202",
+      "local_additions": []
+    },
+    {
+      "name": "pr-review",
+      "repository": "pytorch/pytorch",
+      "revision": "944193e1530b030dd5937343557378dc8912e692",
+      "source_path": ".agents/skills/pr-review",
+      "file_count": 5,
+      "tree_sha256": "31eec504580801362b405a33bd3911447102499974b3e297840b31e4b4a1266d",
+      "skill_sha256": "d4e5f1b0a54cd54eca0d80399552886e6824a9fe83b30055ce953850c31d19e7",
+      "local_additions": [
+        "references/project-profile.md"
+      ]
+    }
+  ],
+  "local_skills": [
+    {
+      "name": "change-database",
+      "path": "agents/skills/change-database",
+      "skill_sha256": "e85da8c85caef704d1f5f0602eec688dd40026c09aeeb460ff5818a2b94f2151"
+    },
+    {
+      "name": "implement-backend-feature",
+      "path": "agents/skills/implement-backend-feature",
+      "skill_sha256": "153c1ef963ae6347de7fabaf7367d2df0d29fc40f5a8f0f801519f9b35355b45"
+    },
+    {
+      "name": "implement-frontend-feature",
+      "path": "agents/skills/implement-frontend-feature",
+      "skill_sha256": "79610994916b15a65b9636516f4fbb961e8051a95ee051c430b460e0e2071696"
+    },
+    {
+      "name": "integrate-gemini",
+      "path": "agents/skills/integrate-gemini",
+      "skill_sha256": "5d928d1b16b87e387a1e5b8d28bbee06bc214a5ee12a29581b9b473be2a6c22e"
+    }
+  ],
+  "license_files": [
+    {
+      "path": "agents/licenses/obra--superpowers--LICENSE",
+      "sha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+    },
+    {
+      "path": "agents/licenses/pytorch--pytorch--LICENSE",
+      "sha256": "bd018feef8825e88181c84eb7e3aa4eafb8f08a20d9fd6ef948569610c4a3e43"
+    },
+    {
+      "path": "agents/licenses/pytorch--pytorch--NOTICE",
+      "sha256": "c2cc7bf0caec7652c2b460a8a470bea1677f241e4ab8e431df34cf17f5a9fec0"
+    }
+  ]
+}
