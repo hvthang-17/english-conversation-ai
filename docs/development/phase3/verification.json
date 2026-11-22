@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-22",
+  "mysql": "8.4.13",
+  "mavenTests": 33,
+  "suites": [
+    {
+      "name": "vn.englishconversation.auth.AccountRulesTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.auth.ProductionCookieMysqlTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.auth.SessionMysqlTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.config.EnvImportTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.conversation.PracticeMysqlTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.profile.ProfileCatalogMysqlTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "vn.englishconversation.system.HealthEndpointTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "frontend": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS"
+  },
+  "liveGemini": "Four direct REST calls with fictional restaurant data; see gemini-live.json. The website has not been exercised with the live provider."
+}
