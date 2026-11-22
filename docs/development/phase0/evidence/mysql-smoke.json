@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-11-20T08:14:25.6093479Z",
+  "status": "PASS",
+  "version": "8.4.13",
+  "port": 3307,
+  "database": "english_conversation",
+  "application_account": "english_app@127.0.0.1",
+  "charset": "utf8mb4",
+  "session_time_zone": "+00:00",
+  "temporary_unicode_write_read": "PASS",
+  "tls_cipher": "TLS_AES_128_GCM_SHA256",
+  "domain_tables_created": false,
+  "evidence_origin": "AGENT_EXECUTED_LOCAL_SMOKE"
+}

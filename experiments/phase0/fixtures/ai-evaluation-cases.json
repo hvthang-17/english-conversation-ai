@@ -1,0 +1,839 @@
+{
+  "status": "PREPARED_NOT_RUN",
+  "personal_data": false,
+  "case_count": 32,
+  "cases": [
+    {
+      "case_id": "SELF_INTRODUCTION_A2_CORRECT",
+      "scenario_code": "SELF_INTRODUCTION",
+      "scenario_title_vi": "Giới thiệu bản thân",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What do you enjoy doing in your free time?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I enjoy reading books in my free time."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SELF_INTRODUCTION_A2_ERROR",
+      "scenario_code": "SELF_INTRODUCTION",
+      "scenario_title_vi": "Giới thiệu bản thân",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What do you enjoy doing in your free time?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I enjoys reading books in my free time."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I enjoy reading books in my free time.",
+        "grammar_focus": "Subject-verb agreement",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SELF_INTRODUCTION_B1_CORRECT",
+      "scenario_code": "SELF_INTRODUCTION",
+      "scenario_title_vi": "Giới thiệu bản thân",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What do you enjoy doing in your free time?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I enjoy reading books in my free time."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SELF_INTRODUCTION_B1_ERROR",
+      "scenario_code": "SELF_INTRODUCTION",
+      "scenario_title_vi": "Giới thiệu bản thân",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What do you enjoy doing in your free time?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I enjoys reading books in my free time."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I enjoy reading books in my free time.",
+        "grammar_focus": "Subject-verb agreement",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "STUDENT_LIFE_A2_CORRECT",
+      "scenario_code": "STUDENT_LIFE",
+      "scenario_title_vi": "Cuộc sống sinh viên",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What are you studying this semester?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I am studying English and computer science this semester."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "STUDENT_LIFE_A2_ERROR",
+      "scenario_code": "STUDENT_LIFE",
+      "scenario_title_vi": "Cuộc sống sinh viên",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What are you studying this semester?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I studying English this semester."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I am studying English this semester.",
+        "grammar_focus": "Missing auxiliary",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "STUDENT_LIFE_B1_CORRECT",
+      "scenario_code": "STUDENT_LIFE",
+      "scenario_title_vi": "Cuộc sống sinh viên",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What are you studying this semester?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I am studying English and computer science this semester."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "STUDENT_LIFE_B1_ERROR",
+      "scenario_code": "STUDENT_LIFE",
+      "scenario_title_vi": "Cuộc sống sinh viên",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What are you studying this semester?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I studying English this semester."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I am studying English this semester.",
+        "grammar_focus": "Missing auxiliary",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "RESTAURANT_ORDER_A2_CORRECT",
+      "scenario_code": "RESTAURANT_ORDER",
+      "scenario_title_vi": "Gọi món",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What would you like to order?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like a bowl of vegetable soup, please."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "RESTAURANT_ORDER_A2_ERROR",
+      "scenario_code": "RESTAURANT_ORDER",
+      "scenario_title_vi": "Gọi món",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What would you like to order?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I want order vegetable soup."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I want to order vegetable soup.",
+        "grammar_focus": "Infinitive after want",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "RESTAURANT_ORDER_B1_CORRECT",
+      "scenario_code": "RESTAURANT_ORDER",
+      "scenario_title_vi": "Gọi món",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What would you like to order?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like a bowl of vegetable soup, please."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "RESTAURANT_ORDER_B1_ERROR",
+      "scenario_code": "RESTAURANT_ORDER",
+      "scenario_title_vi": "Gọi món",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What would you like to order?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I want order vegetable soup."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I want to order vegetable soup.",
+        "grammar_focus": "Infinitive after want",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SHOPPING_A2_CORRECT",
+      "scenario_code": "SHOPPING",
+      "scenario_title_vi": "Mua sắm",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What size would you like?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Do you have this shirt in a smaller size?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SHOPPING_A2_ERROR",
+      "scenario_code": "SHOPPING",
+      "scenario_title_vi": "Mua sắm",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What size would you like?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Do you has this shirt in a smaller size?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "Do you have this shirt in a smaller size?",
+        "grammar_focus": "Base verb after do",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SHOPPING_B1_CORRECT",
+      "scenario_code": "SHOPPING",
+      "scenario_title_vi": "Mua sắm",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What size would you like?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Do you have this shirt in a smaller size?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "SHOPPING_B1_ERROR",
+      "scenario_code": "SHOPPING",
+      "scenario_title_vi": "Mua sắm",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What size would you like?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Do you has this shirt in a smaller size?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "Do you have this shirt in a smaller size?",
+        "grammar_focus": "Base verb after do",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "ASKING_DIRECTIONS_A2_CORRECT",
+      "scenario_code": "ASKING_DIRECTIONS",
+      "scenario_title_vi": "Hỏi đường",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Where would you like to go?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Could you tell me how to get to the station?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "ASKING_DIRECTIONS_A2_ERROR",
+      "scenario_code": "ASKING_DIRECTIONS",
+      "scenario_title_vi": "Hỏi đường",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Where would you like to go?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Could you tells me how to get to the station?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "Could you tell me how to get to the station?",
+        "grammar_focus": "Base verb after modal",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "ASKING_DIRECTIONS_B1_CORRECT",
+      "scenario_code": "ASKING_DIRECTIONS",
+      "scenario_title_vi": "Hỏi đường",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Where would you like to go?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Could you tell me how to get to the station?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "ASKING_DIRECTIONS_B1_ERROR",
+      "scenario_code": "ASKING_DIRECTIONS",
+      "scenario_title_vi": "Hỏi đường",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Where would you like to go?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "Could you tells me how to get to the station?"
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "Could you tell me how to get to the station?",
+        "grammar_focus": "Base verb after modal",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "HOTEL_BOOKING_A2_CORRECT",
+      "scenario_code": "HOTEL_BOOKING",
+      "scenario_title_vi": "Đặt phòng",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "How many nights would you like to stay?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to stay for two nights."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "HOTEL_BOOKING_A2_ERROR",
+      "scenario_code": "HOTEL_BOOKING",
+      "scenario_title_vi": "Đặt phòng",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "How many nights would you like to stay?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to stay for two night."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I would like to stay for two nights.",
+        "grammar_focus": "Plural count noun",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "HOTEL_BOOKING_B1_CORRECT",
+      "scenario_code": "HOTEL_BOOKING",
+      "scenario_title_vi": "Đặt phòng",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "How many nights would you like to stay?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to stay for two nights."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "HOTEL_BOOKING_B1_ERROR",
+      "scenario_code": "HOTEL_BOOKING",
+      "scenario_title_vi": "Đặt phòng",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "How many nights would you like to stay?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to stay for two night."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I would like to stay for two nights.",
+        "grammar_focus": "Plural count noun",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "WEEKEND_PLANS_A2_CORRECT",
+      "scenario_code": "WEEKEND_PLANS",
+      "scenario_title_vi": "Sở thích và cuối tuần",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What did you do last weekend?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I went to the park with a friend last weekend."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "WEEKEND_PLANS_A2_ERROR",
+      "scenario_code": "WEEKEND_PLANS",
+      "scenario_title_vi": "Sở thích và cuối tuần",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What did you do last weekend?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I go to the park yesterday."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I went to the park yesterday.",
+        "grammar_focus": "Past tense time marker",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "WEEKEND_PLANS_B1_CORRECT",
+      "scenario_code": "WEEKEND_PLANS",
+      "scenario_title_vi": "Sở thích và cuối tuần",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What did you do last weekend?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I went to the park with a friend last weekend."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "WEEKEND_PLANS_B1_ERROR",
+      "scenario_code": "WEEKEND_PLANS",
+      "scenario_title_vi": "Sở thích và cuối tuần",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "What did you do last weekend?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I go to the park yesterday."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I went to the park yesterday.",
+        "grammar_focus": "Past tense time marker",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "BASIC_INTERVIEW_A2_CORRECT",
+      "scenario_code": "BASIC_INTERVIEW",
+      "scenario_title_vi": "Phỏng vấn cơ bản",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Why would you like to join this team?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to learn new skills and work with others."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "BASIC_INTERVIEW_A2_ERROR",
+      "scenario_code": "BASIC_INTERVIEW",
+      "scenario_title_vi": "Phỏng vấn cơ bản",
+      "selected_level": "A2",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Why would you like to join this team?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I am interested in learn new skills."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I am interested in learning new skills.",
+        "grammar_focus": "Gerund after preposition",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "BASIC_INTERVIEW_B1_CORRECT",
+      "scenario_code": "BASIC_INTERVIEW",
+      "scenario_title_vi": "Phỏng vấn cơ bản",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Why would you like to join this team?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I would like to learn new skills and work with others."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": false,
+        "source_message_id": "u1",
+        "correction_example": null,
+        "grammar_focus": null,
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    },
+    {
+      "case_id": "BASIC_INTERVIEW_B1_ERROR",
+      "scenario_code": "BASIC_INTERVIEW",
+      "scenario_title_vi": "Phỏng vấn cơ bản",
+      "selected_level": "B1",
+      "source": "AUTHOR_WRITTEN_SYNTHETIC_NOT_EXPERT_VALIDATED",
+      "messages": [
+        {
+          "id": "a0",
+          "sender": "ASSISTANT",
+          "content": "Why would you like to join this team?"
+        },
+        {
+          "id": "u1",
+          "sender": "LEARNER",
+          "content": "I am interested in learn new skills."
+        }
+      ],
+      "expected": {
+        "actual_error_expected": true,
+        "source_message_id": "u1",
+        "correction_example": "I am interested in learning new skills.",
+        "grammar_focus": "Gerund after preposition",
+        "notes": "Correct variants must not be labelled grammatically wrong; stylistic improvement is separate. Level suitability requires human review."
+      }
+    }
+  ]
+}

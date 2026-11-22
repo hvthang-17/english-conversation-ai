@@ -1,0 +1,11 @@
+body { margin: 0; background: #f3f7f8; color: #193747; font: 1rem/1.65 "Segoe UI", sans-serif; }
+main { max-width: 850px; margin: auto; padding: 30px 22px; }
+section { background: white; border: 1px solid #d4e2e7; border-radius: 10px; padding: 22px; margin: 22px 0; }
+h1 { line-height: 1.25; }
+h2 { margin-top: 0; font-size: 1.2rem; }
+button { padding: 11px 15px; min-height: 44px; color: white; background: #17687a; border: 0; border-radius: 6px; font: inherit; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, pre:focus-visible { outline: 3px solid #b77110; outline-offset: 3px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; }
+audio { display: block; width: 100%; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }

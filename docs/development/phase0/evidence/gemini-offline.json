@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-11-20T08:19:11.693638600Z",
+  "mode": "DRY_RUN",
+  "api_revision": "2026-05-20",
+  "max_calls_per_run": 4,
+  "billing_hard_cap_enforced": false,
+  "note": "Request/output limits are not a provider billing hard cap. No automatic retries. No raw prompt, response, key or audio in reports.",
+  "results": [
+    {
+      "case_id": "CHAT_A2",
+      "task": "CHAT",
+      "model": "NOT_SELECTED",
+      "max_output_tokens": 512,
+      "status": "PREPARED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAT_B1",
+      "task": "CHAT",
+      "model": "NOT_SELECTED",
+      "max_output_tokens": 512,
+      "status": "PREPARED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "FEEDBACK",
+      "task": "FEEDBACK",
+      "model": "NOT_SELECTED",
+      "max_output_tokens": 2048,
+      "status": "PREPARED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "TRANSCRIPTION",
+      "task": "TRANSCRIPTION",
+      "model": "NOT_SELECTED",
+      "max_output_tokens": 512,
+      "status": "PREPARED_NOT_EXECUTED"
+    }
+  ],
+  "evidence_origin": "AGENT_EXECUTED_OFFLINE_NO_PROVIDER"
+}
