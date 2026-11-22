@@ -1,0 +1,5 @@
+package vn.englishconversation.admin.dto;
+
+import java.util.List;
+
+public record AdminPage<T>(List<T> items, int page, int size, long total) {}

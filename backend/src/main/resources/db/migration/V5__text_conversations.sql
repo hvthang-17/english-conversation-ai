@@ -1,0 +1,86 @@
+CREATE TABLE practice_sessions (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT NOT NULL, scenario_id BIGINT NOT NULL,
+ client_request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ request_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ selected_level VARCHAR(2) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ scenario_snapshot JSON NOT NULL,
+ status VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ started_at DATETIME(6) NOT NULL, ended_at DATETIME(6) NULL, last_activity_at DATETIME(6) NOT NULL,
+ version BIGINT NOT NULL DEFAULT 0,
+ CONSTRAINT fk_practice_owner FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_practice_scenario FOREIGN KEY(scenario_id) REFERENCES scenarios(id) ON DELETE RESTRICT,
+ CONSTRAINT uk_practice_create UNIQUE(user_id,client_request_id),
+ CONSTRAINT ck_practice_level CHECK(selected_level IN ('A2','B1')),
+ CONSTRAINT ck_practice_status CHECK(status IN ('ACTIVE','COMPLETED','ABANDONED')),
+ INDEX ix_practice_owner_time(user_id,started_at,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE ai_requests (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT NOT NULL, session_id BIGINT NULL,
+ task_type VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ operation_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ request_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ status VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ prompt_version VARCHAR(80) NOT NULL,
+ attempt_count INT NOT NULL DEFAULT 0,
+ retryable BOOLEAN NOT NULL DEFAULT FALSE,
+ error_code VARCHAR(100) NULL,
+ retry_not_before DATETIME(6) NULL,
+ processing_expires_at DATETIME(6) NULL,
+ created_at DATETIME(6) NOT NULL, finished_at DATETIME(6) NULL,
+ busy_session_id BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('PENDING','RUNNING','UNKNOWN') THEN session_id ELSE NULL END) VIRTUAL,
+ CONSTRAINT fk_ai_owner FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_ai_session FOREIGN KEY(session_id) REFERENCES practice_sessions(id) ON DELETE SET NULL,
+ CONSTRAINT uk_ai_operation UNIQUE(user_id,task_type,operation_key),
+ CONSTRAINT uk_ai_busy_session UNIQUE(busy_session_id),
+ CONSTRAINT ck_ai_task CHECK(task_type IN ('CHAT','HINT','TRANSCRIPTION','FEEDBACK')),
+ CONSTRAINT ck_ai_status CHECK(status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','UNKNOWN')),
+ INDEX ix_ai_owner_created(user_id,created_at), INDEX ix_ai_session(session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE ai_attempts (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ ai_request_id BIGINT NOT NULL, attempt_no INT NOT NULL,
+ model_name VARCHAR(150) NOT NULL,
+ status VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ provider_request_id VARCHAR(255) NULL,
+ input_tokens BIGINT NULL, output_tokens BIGINT NULL,
+ latency_ms BIGINT NULL, estimated_cost DECIMAL(18,8) NULL, pricing_reference VARCHAR(255) NULL,
+ error_code VARCHAR(100) NULL,
+ started_at DATETIME(6) NOT NULL, finished_at DATETIME(6) NULL,
+ CONSTRAINT fk_attempt_request FOREIGN KEY(ai_request_id) REFERENCES ai_requests(id) ON DELETE RESTRICT,
+ CONSTRAINT uk_attempt_number UNIQUE(ai_request_id,attempt_no),
+ CONSTRAINT ck_attempt_number CHECK(attempt_no>0),
+ CONSTRAINT ck_attempt_status CHECK(status IN ('RUNNING','SUCCEEDED','FAILED','UNKNOWN')),
+ CONSTRAINT ck_attempt_tokens CHECK((input_tokens IS NULL OR input_tokens>=0) AND (output_tokens IS NULL OR output_tokens>=0)),
+ INDEX ix_attempt_started(started_at), INDEX ix_attempt_status_started(status,started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE conversation_turns (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, session_id BIGINT NOT NULL,
+ turn_no INT NOT NULL, client_request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ request_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ kind VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ status VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ ai_request_id BIGINT NOT NULL,
+ processing_expires_at DATETIME(6) NULL,
+ created_at DATETIME(6) NOT NULL, completed_at DATETIME(6) NULL, version BIGINT NOT NULL DEFAULT 0,
+ CONSTRAINT fk_turn_session FOREIGN KEY(session_id) REFERENCES practice_sessions(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_turn_ai FOREIGN KEY(ai_request_id) REFERENCES ai_requests(id) ON DELETE RESTRICT,
+ CONSTRAINT uk_turn_number UNIQUE(session_id,turn_no), CONSTRAINT uk_turn_client UNIQUE(session_id,client_request_id),
+ CONSTRAINT uk_turn_session_id UNIQUE(session_id,id), CONSTRAINT uk_turn_ai UNIQUE(ai_request_id),
+ CONSTRAINT ck_turn_no CHECK(turn_no BETWEEN 0 AND 20),
+ CONSTRAINT ck_turn_kind CHECK(kind IN ('OPENING','LEARNER_TEXT','LEARNER_AUDIO')),
+ CONSTRAINT ck_turn_status CHECK(status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','UNKNOWN','SKIPPED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE messages (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, session_id BIGINT NOT NULL, turn_id BIGINT NOT NULL,
+ sender VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ content TEXT NOT NULL, input_type VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ created_at DATETIME(6) NOT NULL,
+ CONSTRAINT fk_message_turn FOREIGN KEY(session_id,turn_id) REFERENCES conversation_turns(session_id,id) ON DELETE RESTRICT,
+ CONSTRAINT uk_message_sender UNIQUE(turn_id,sender), CONSTRAINT uk_message_session_id UNIQUE(session_id,id),
+ CONSTRAINT ck_message_sender CHECK(sender IN ('LEARNER','ASSISTANT')),
+ CONSTRAINT ck_message_input CHECK((sender='LEARNER' AND input_type='TEXT') OR (sender='ASSISTANT' AND input_type='GENERATED')),
+ INDEX ix_message_session_created(session_id,created_at,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Audio column/FK and AUDIO input validation are deliberately deferred until audio_submissions exists.
