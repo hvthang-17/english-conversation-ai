@@ -8,4 +8,8 @@ public record FeedbackResponse(
     boolean retryable,
     int attempts,
     FeedbackResult result,
-    List<String> suggestionIds) {}
+    List<String> suggestionIds,
+    List<RepeatedError> repeatedErrors) {
+  public record RepeatedError(String ruleCode, String category, int messageCount,
+      FeedbackResult.Correction example) {}
+}

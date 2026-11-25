@@ -10,7 +10,7 @@ import vn.englishconversation.feedback.dto.FeedbackResponse;
 
 @RestController
 @RequestMapping("/api/v1/practice-sessions/{id}/feedback")
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class FeedbackController {
   private final PracticeService practice;
 

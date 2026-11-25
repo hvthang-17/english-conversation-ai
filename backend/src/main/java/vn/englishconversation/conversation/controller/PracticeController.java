@@ -3,17 +3,20 @@ package vn.englishconversation.conversation.controller;
 import jakarta.validation.Valid;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.conversation.dto.*;
 import vn.englishconversation.conversation.service.PracticeService;
-import vn.englishconversation.voice.*;
+import vn.englishconversation.voice.dto.ConfirmVoiceRequest;
+import vn.englishconversation.voice.dto.VoiceDraft;
+import vn.englishconversation.voice.service.WaveAudio;
 
 @RestController
 @RequestMapping("/api/v1/practice-sessions")
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class PracticeController {
   private final PracticeService practice;
 
@@ -60,6 +63,13 @@ public class PracticeController {
     return practice.uploadVoice(owner, id, clientRequestId, WaveAudio.read(file), retry);
   }
 
+  @GetMapping("/{id}/audio")
+  public ResponseEntity<VoiceDraft> recoverVoice(
+      @AuthenticationPrincipal AccountPrincipal owner, @PathVariable long id) {
+    return practice.recoverVoice(owner, id).map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.noContent().build());
+  }
+
   @GetMapping("/{id}/audio/{audioId}")
   public VoiceDraft getVoice(
       @AuthenticationPrincipal AccountPrincipal owner, @PathVariable long id, @PathVariable long audioId) {
@@ -72,7 +82,7 @@ public class PracticeController {
       @PathVariable long id,
       @PathVariable long audioId,
       @Valid @RequestBody ConfirmVoiceRequest request) {
-    return practice.confirmVoice(owner, id, audioId, request.content());
+    return practice.confirmVoice(owner, id, audioId, request.content(), request.assessPronunciation());
   }
 
   @DeleteMapping("/{id}/audio/{audioId}")
@@ -88,6 +98,18 @@ public class PracticeController {
       @PathVariable long id,
       @Valid @RequestBody HintRequest request) {
     return practice.hint(owner, id, request);
+  }
+
+  @GetMapping("/{id}/messages/{messageId}/explanation")
+  public ExplanationResponse explanation(@AuthenticationPrincipal AccountPrincipal owner,
+      @PathVariable long id, @PathVariable long messageId) {
+    return practice.getExplanation(owner, id, messageId);
+  }
+
+  @PostMapping("/{id}/messages/{messageId}/explanation")
+  public ExplanationResponse explain(@AuthenticationPrincipal AccountPrincipal owner,
+      @PathVariable long id, @PathVariable long messageId, @Valid @RequestBody ExplanationRequest input) {
+    return practice.explain(owner, id, messageId, input);
   }
 
   @PostMapping("/{id}/operations/{operation}/retry")

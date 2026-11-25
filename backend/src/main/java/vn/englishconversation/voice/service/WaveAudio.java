@@ -1,4 +1,4 @@
-package vn.englishconversation.voice;
+package vn.englishconversation.voice.service;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

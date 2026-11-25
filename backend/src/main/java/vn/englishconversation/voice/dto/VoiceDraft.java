@@ -1,4 +1,4 @@
-package vn.englishconversation.voice;
+package vn.englishconversation.voice.dto;
 
 public record VoiceDraft(
     String id, String status, String transcript, String expiresAt, int durationMillis,

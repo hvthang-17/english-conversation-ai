@@ -1,4 +1,4 @@
-package vn.englishconversation.voice;
+package vn.englishconversation.voice.service;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -7,32 +7,33 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.conversation.repository.PracticeStore;
+import vn.englishconversation.common.repository.JdbcStore;
 
 @Component
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class VoiceStorage {
   private static final Logger log = LoggerFactory.getLogger(VoiceStorage.class);
   private final Path root;
-  private final PracticeStore db;
+  private final JdbcStore db;
   private final TransactionTemplate tx;
   private final int rawSeconds;
   private final int draftSeconds;
+  private final boolean conversationScoringSchema;
 
   public VoiceStorage(
       @Value("${app.voice.temp-directory:.runtime/voice}") String directory,
       @Value("${app.voice.raw-ttl-seconds:3600}") int rawSeconds,
       @Value("${app.voice.draft-ttl-seconds:1800}") int draftSeconds,
-      PracticeStore db,
-      PlatformTransactionManager manager) {
+      JdbcStore db,
+      PlatformTransactionManager manager, Environment environment) {
     this.root = Path.of(directory).toAbsolutePath().normalize();
     this.db = db;
     this.tx = new TransactionTemplate(manager);
@@ -40,13 +41,14 @@ public class VoiceStorage {
       throw new IllegalArgumentException("Voice TTLs exceed the approved data policy.");
     this.rawSeconds = rawSeconds;
     this.draftSeconds = draftSeconds;
+    this.conversationScoringSchema = environment.acceptsProfiles(Profiles.of("g6"));
   }
 
   public int rawSeconds() { return rawSeconds; }
 
   public int draftSeconds() { return draftSeconds; }
 
-  private Path path(String key) {
+  public Path path(String key) {
     return root.resolve(UUID.fromString(key).toString() + ".wav");
   }
 
@@ -86,7 +88,7 @@ public class VoiceStorage {
     for (var row : db.rows(
         """
         SELECT id FROM audio_submissions WHERE status='DELETION_PENDING'
-        OR storage_key IS NOT NULL AND (status<>'TRANSCRIBING' OR expires_at<=UTC_TIMESTAMP(6))
+        OR storage_key IS NOT NULL AND (status NOT IN ('TRANSCRIBING','READY') OR expires_at<=UTC_TIMESTAMP(6))
         ORDER BY id LIMIT 200
         """)) {
       tx.executeWithoutResult(ignored -> clean(row.number("id")));
@@ -103,8 +105,14 @@ public class VoiceStorage {
     if (row.isEmpty()) return;
     var audio = row.get();
     String key = audio.text("storage_key");
-    if (key != null && (!"TRANSCRIBING".equals(audio.text("status")) || audio.flag("expired")))
+    if (key != null && (!java.util.Set.of("TRANSCRIBING", "READY").contains(audio.text("status")) || audio.flag("expired")))
       release(key);
+    // Keep the parent until the scoring worker has removed its copy and acknowledged cleanup.
+    if (conversationScoringSchema && audio.text("status").equals("DELETION_PENDING")
+        && db.count("""
+            SELECT COUNT(*) FROM pronunciation_attempts
+            WHERE audio_submission_id=? AND audio_storage_key IS NOT NULL
+            """, id) > 0) return;
     db.update(
         """
         DELETE FROM audio_submissions
@@ -129,9 +137,4 @@ public class VoiceStorage {
       log.warn("Temporary practice audio directory could not be scanned.");
     }
   }
-
-  @Configuration(proxyBeanMethods = false)
-  @EnableScheduling
-  @Profile("!bootstrap")
-  static class Scheduling {}
 }

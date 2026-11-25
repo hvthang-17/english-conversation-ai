@@ -1,5 +1,9 @@
 package vn.englishconversation.conversation;
 
+import vn.englishconversation.admin.dto.AdminCatalog.ScenarioInput;
+import vn.englishconversation.admin.dto.AdminCatalog.ScenarioVariant;
+import vn.englishconversation.auth.service.AccountLifecycleService;
+import vn.englishconversation.auth.job.AccountDeletionWorker;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
@@ -7,6 +11,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +28,8 @@ import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.conversation.dto.*;
 import vn.englishconversation.conversation.service.PracticeService;
-import vn.englishconversation.voice.*;
+import vn.englishconversation.voice.service.VoiceStorage;
+import vn.englishconversation.voice.service.WaveAudio;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -32,20 +38,34 @@ import vn.englishconversation.voice.*;
       "CHAT_USER_RPM=60",
       "CHAT_GLOBAL_CONCURRENT=1",
       "CHAT_FINGERPRINT_SECRET=synthetic-test-only-secret-1234567890",
+      "CHAT_TOTAL_ATTEMPT_LIMIT=0",
       "GEMINI_CHAT_ENABLED=false"
     })
 @EnabledIfEnvironmentVariable(named = "PHASE1_MYSQL_TEST", matches = "true")
 class PracticeMysqlTest {
+  @org.springframework.test.context.bean.override.mockito.MockitoBean
+  vn.englishconversation.pronunciation.service.PronunciationProvider pronunciationProvider;
   @Autowired PracticeService service;
   @Autowired AccountService accounts;
   @Autowired JdbcTemplate jdbc;
   @Autowired FixtureProvider provider;
+  @Autowired AccountLifecycleService lifecycle;
+  @Autowired AccountDeletionWorker deletion;
   @Autowired VoiceStorage voiceStorage;
 
   @org.springframework.beans.factory.annotation.Value("${local.server.port}")
   int port;
 
   @Autowired vn.englishconversation.learning.service.LearningService learning;
+
+  @BeforeEach
+  void ageAttemptsFromPreviousTestsOutOfTheQuotaWindow() {
+    jdbc.update("""
+        UPDATE ai_attempts
+        SET started_at=started_at-INTERVAL 61 SECOND,finished_at=finished_at-INTERVAL 61 SECOND
+        WHERE status<>'RUNNING' AND started_at>=UTC_TIMESTAMP(6)-INTERVAL 60 SECOND
+        """);
+  }
 
   @Test
   void adminManagesCatalogAndAccountsWithAuditAndPreservesPractice() throws Exception {
@@ -75,6 +95,13 @@ class PracticeMysqlTest {
     assertTrue(java.util.stream.StreamSupport.stream(matches.spliterator(), false)
         .anyMatch(row -> person.id().equals(row.get("id").asString()) && email.equals(row.get("email").asString())));
     assertFalse(matches.get(0).has("passwordHash"));
+    assertEquals(1, json.readTree(request(admin, json, base,
+        "admin/users?email=" + email + "&page=1&size=1", "GET", null, false).body()).get("items").size());
+    for (var change : List.of(java.util.Map.of("role", "LEARNER"), java.util.Map.of("status", "LOCKED"))) {
+      var denied = request(admin, json, base, "admin/users/" + actor + "/access", "PATCH", change, true);
+      assertEquals(409, denied.statusCode());
+      assertEquals("ADMIN_SELF_ACCESS", json.readTree(denied.body()).get("code").asString());
+    }
 
     var topic = new vn.englishconversation.admin.dto.AdminCatalog.TopicInput(code, "Fixture topic", null, true, 3);
     assertEquals(403, post(learner, json, base, "admin/topics", topic, true).statusCode());
@@ -86,25 +113,55 @@ class PracticeMysqlTest {
     String catalog = "admin/topics/" + topicId + "/scenarios";
     assertEquals(422, post(admin, json, base, catalog,
         adminScenario(code, "Fixture lesson", "ACTIVE", List.of()), true).statusCode());
+    var initial = new ScenarioVariant("REVERSE", "Waiter", "Customer", "Confirm the order.",
+        "At the cafe counter.", "Act as the original cafe customer.");
+    var duplicatePair = new ScenarioVariant("COPY", " waiter ", "CUSTOMER",
+        initial.communicationGoal(), initial.contextDescription(), initial.aiInstruction());
+    var reserved = new ScenarioVariant("DEFAULT", initial.learnerRole(), initial.aiRole(),
+        initial.communicationGoal(), initial.contextDescription(), initial.aiInstruction());
+    var invalidPrompt = new ScenarioVariant("INVALID", "Cook", "Courier", "Check the order.",
+        "In the kitchen.", "Invalid control " + (char) 1);
+    for (var invalid : List.of(List.of(initial, initial), List.of(initial, duplicatePair),
+        List.of(reserved), List.of(invalidPrompt))) {
+      assertEquals(422, post(admin, json, base, catalog,
+          adminScenario(code, "Fixture lesson", "ACTIVE", List.of("A2", "B1"), invalid), true).statusCode());
+    }
     var scenario = post(admin, json, base, catalog,
-        adminScenario(code, "Fixture lesson", "ACTIVE", List.of("A2", "B1")), true);
+        adminScenario(code, "Fixture lesson", "ACTIVE", List.of("A2", "B1"), List.of(initial)), true);
     assertEquals(201, scenario.statusCode(), scenario.body());
     String scenarioId = json.readTree(scenario.body()).get("id").asString();
     assertEquals(403, request(learner, json, base, catalog, "GET", null, false).statusCode());
     var publicLesson = request(learner, json, base, "scenarios/" + scenarioId + "?level=A2", "GET", null, false);
     assertEquals(200, publicLesson.statusCode(), publicLesson.body());
-    assertFalse(json.readTree(publicLesson.body()).has("aiInstruction"));
+    assertFalse(publicLesson.body().contains("aiInstruction"));
+    assertFalse(publicLesson.body().contains(initial.aiInstruction()));
+    assertTrue(publicLesson.body().contains("REVERSE"));
+    var rolePath = catalog + "/" + scenarioId + "/roles";
+    assertEquals(403, request(learner, json, base, rolePath, "GET", null, false).statusCode());
+    var adminRoles = request(admin, json, base, rolePath, "GET", null, false);
+    assertEquals(200, adminRoles.statusCode());
+    assertEquals(initial.aiInstruction(), json.readTree(adminRoles.body()).get(0).get("aiInstruction").asString());
     var practice = post(learner, json, base, "practice-sessions",
-        new CreatePracticeRequest(scenarioId, "A2", java.util.UUID.randomUUID().toString()), true);
+        new CreatePracticeRequest(scenarioId, "A2", java.util.UUID.randomUUID().toString(), "TEXT", "REVERSE"), true);
+    assertTrue(provider.lastPrompt.instruction().contains(initial.aiInstruction()));
     assertEquals(200, practice.statusCode(), practice.body());
     String practiceId = json.readTree(practice.body()).get("id").asString();
     assertEquals(404, request(admin, json, base, "practice-sessions/" + practiceId, "GET", null, false).statusCode());
 
+    var next = new ScenarioVariant("REVERSE", "Barista", "Guest", "Confirm a coffee order.",
+        "At a coffee bar.", "Act as the updated coffee guest.");
     var update = request(admin, json, base, catalog + "/" + scenarioId, "PUT",
-        adminScenario(code, "Renamed lesson", "ACTIVE", List.of("B1")), true);
+        adminScenario(code, "Renamed lesson", "ACTIVE", List.of("B1"), List.of(next)), true);
     assertEquals(200, update.statusCode(), update.body());
     assertEquals(404, request(learner, json, base, "scenarios/" + scenarioId + "?level=A2", "GET", null, false).statusCode());
-    assertEquals(200, request(learner, json, base, "scenarios/" + scenarioId + "?level=B1", "GET", null, false).statusCode());
+    var updatedPublic = request(learner, json, base, "scenarios/" + scenarioId + "?level=B1", "GET", null, false);
+    assertEquals(200, updatedPublic.statusCode(), updatedPublic.body());
+    assertTrue(updatedPublic.body().contains("Barista"));
+    assertFalse(updatedPublic.body().contains(next.aiInstruction()));
+    service.send(new AccountPrincipal(Long.parseLong(person.id()), 0), Long.parseLong(practiceId),
+        new SendTextRequest("What would you like to order?", "admin-snapshot-turn"));
+    assertTrue(provider.lastPrompt.instruction().contains(initial.aiInstruction()));
+    assertFalse(provider.lastPrompt.instruction().contains(next.aiInstruction()));
     String topicPath = "admin/topics/" + topicId;
     assertEquals(200, request(admin, json, base, topicPath, "PUT",
         new vn.englishconversation.admin.dto.AdminCatalog.TopicInput(code, "Hidden topic", null, false, 3), true).statusCode());
@@ -112,10 +169,12 @@ class PracticeMysqlTest {
     assertEquals(422, request(admin, json, base, catalog + "/" + scenarioId, "PUT",
         adminScenario(code, "Renamed lesson", "ACTIVE", List.of("B1")), true).statusCode());
     assertEquals(200, request(admin, json, base, catalog + "/" + scenarioId, "PUT",
-        adminScenario(code, "Renamed lesson", "ARCHIVED", List.of()), true).statusCode());
+        adminScenario(code, "Renamed lesson", "ARCHIVED", List.of(), List.of()), true).statusCode());
+    assertEquals(0, json.readTree(request(admin, json, base, rolePath, "GET", null, false).body()).size());
     var reopened = request(learner, json, base, "practice-sessions/" + practiceId, "GET", null, false);
     assertEquals("Fixture lesson", json.readTree(reopened.body()).get("title").asString());
     assertEquals("A2", json.readTree(reopened.body()).get("selectedLevel").asString());
+    assertEquals(initial.learnerRole(), json.readTree(reopened.body()).get("learnerRole").asString());
     var history = request(learner, json, base, "learning/history", "GET", null, false);
     assertEquals("Fixture lesson", json.readTree(history.body()).get("items").get(0).get("title").asString());
 
@@ -147,20 +206,458 @@ class PracticeMysqlTest {
     var overview = request(admin, json, base, "admin/overview", "GET", null, false);
     assertEquals(200, overview.statusCode(), overview.body());
     assertTrue(json.readTree(overview.body()).get("aiAttempts24h").asLong() > 0);
+    var promoted = request(admin, json, base, access, "PATCH", java.util.Map.of("role", "ADMIN"), true);
+    assertEquals(200, promoted.statusCode(), promoted.body());
+    assertEquals("ACTIVE", json.readTree(promoted.body()).get("status").asString());
+    assertEquals(401, request(learner, json, base, "auth/me", "GET", null, false).statusCode());
+    assertEquals(200, post(learner, json, base, "auth/login",
+        java.util.Map.of("email", email, "password", password), true).statusCode());
+    assertEquals(200, request(learner, json, base, "admin/users", "GET", null, false).statusCode());
+    assertEquals(409, request(admin, json, base, catalog + "/" + scenarioId, "DELETE", null, true).statusCode());
+    var disposable = post(admin, json, base, catalog, adminScenario(code + "_DRAFT", "Disposable", "DRAFT", List.of("A2")), true);
+    assertEquals(201, disposable.statusCode(), disposable.body());
+    String draftPath = catalog + "/" + json.readTree(disposable.body()).get("id").asString();
+    assertEquals(403, request(admin, json, base, draftPath, "DELETE", null, false).statusCode());
+    assertEquals(204, request(admin, json, base, draftPath, "DELETE", null, true).statusCode());
+    assertEquals(404, request(admin, json, base, draftPath + "/roles", "GET", null, false).statusCode());
+    String archivedPath = catalog + "/" + scenarioId;
+    assertEquals(422, post(admin, json, base, archivedPath + "/restore", null, true).statusCode());
+    assertEquals(200, request(admin, json, base, topicPath, "PUT", topic, true).statusCode());
+    assertEquals(422, post(admin, json, base, archivedPath + "/restore", null, true).statusCode());
+    assertEquals(200, request(admin, json, base, archivedPath, "PUT",
+        adminScenario(code, "Renamed lesson", "ARCHIVED", List.of("B1")), true).statusCode());
+    assertEquals(403, post(admin, json, base, archivedPath + "/restore", null, false).statusCode());
+    assertEquals(204, post(admin, json, base, archivedPath + "/restore", null, true).statusCode());
+    assertEquals(200, request(learner, json, base, "scenarios/" + scenarioId + "?level=B1", "GET", null, false).statusCode());
   }
 
-  private static vn.englishconversation.admin.dto.AdminCatalog.ScenarioInput adminScenario(
+  @Test
+  void materialAdminProtectsDraftsAndPreservesListeningHistory() throws Exception {
+    var admin = java.net.http.HttpClient.newBuilder()
+        .cookieHandler(new java.net.CookieManager(null, java.net.CookiePolicy.ACCEPT_ALL)).build();
+    var learner = java.net.http.HttpClient.newBuilder()
+        .cookieHandler(new java.net.CookieManager(null, java.net.CookiePolicy.ACCEPT_ALL)).build();
+    var json = new tools.jackson.databind.ObjectMapper();
+    String base = "http://127.0.0.1:" + port + "/api/v1/";
+    String suffix = java.util.UUID.randomUUID().toString();
+    String password = "Synthetic material test password";
+    var author = accounts.register("editor-" + suffix + "@example.test", password);
+    var student = accounts.register("student-" + suffix + "@example.test", password);
+    accounts.changeAccess(Long.parseLong(author.id()), "ADMIN", "ACTIVE");
+    assertEquals(200, post(admin, json, base, "auth/login",
+        java.util.Map.of("email", author.email(), "password", password), true).statusCode());
+    assertEquals(200, post(learner, json, base, "auth/login",
+        java.util.Map.of("email", student.email(), "password", password), true).statusCode());
+    String topics = "admin/materials/TOPICS";
+    var draft = java.util.Map.of("code", "DRAFT_" + suffix.substring(0, 8).toUpperCase(java.util.Locale.ROOT),
+        "name", "Chủ đề thử nghiệm", "sort_order", "0");
+    assertEquals(403, post(learner, json, base, topics, draft, true).statusCode());
+    assertEquals(403, post(admin, json, base, topics, draft, false).statusCode());
+    var created = post(admin, json, base, topics, draft, true);
+    assertEquals(201, created.statusCode(), created.body());
+    String topic = topics + "/" + json.readTree(created.body()).get("id").asString();
+    assertEquals(204, request(admin, json, base, topic, "DELETE", null, true).statusCode());
+    assertEquals(404, request(admin, json, base, topic, "DELETE", null, true).statusCode());
+    assertEquals(422, post(admin, json, base, topics, java.util.Map.of("sort_order", 0), true).statusCode());
+
+    String words = "admin/materials/WORDS";
+    var word = java.util.Map.of("lesson_id", "101", "sort_order", "20", "kind", "WORD",
+        "expression", "hello", "meaning_vi", "xin chào", "example_en", "Hello, Sam!", "example_vi", "Xin chào, Sam!");
+    var wordDraft = post(admin, json, base, words, word, true);
+    assertEquals(201, wordDraft.statusCode(), wordDraft.body());
+    String wordPath = words + "/" + json.readTree(wordDraft.body()).get("id").asString();
+    assertEquals(422, post(admin, json, base, wordPath + "/publish", null, true).statusCode());
+    var corrected = new java.util.HashMap<>(word);
+    corrected.put("ipa", "/həˈloʊ/");
+    assertEquals(200, request(admin, json, base, wordPath, "PUT", corrected, true).statusCode());
+    assertEquals(204, post(admin, json, base, wordPath + "/publish", null, true).statusCode());
+    assertEquals(409, request(admin, json, base, wordPath, "DELETE", null, true).statusCode());
+    assertEquals(204, post(admin, json, base, wordPath + "/archive", null, true).statusCode());
+
+    String listening = "admin/materials/LISTENING";
+    var versions = request(admin, json, base, listening + "?size=50", "GET", null, false);
+    assertEquals(200, versions.statusCode(), versions.body());
+    var seed = json.readTree(versions.body()).get("items").values().stream()
+        .filter(item -> item.get("id").asString().equals("201")).findFirst().orElseThrow();
+    var fields = json.convertValue(seed, new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+    fields.remove("id");
+    fields.remove("status");
+    fields.put("tts_voice_key", "invalid-voice");
+    assertEquals(422, post(admin, json, base, listening, fields, true).statusCode());
+    fields.put("tts_voice_key", seed.get("tts_voice_key").asString());
+    var listeningDraft = post(admin, json, base, listening, fields, true);
+    assertEquals(201, listeningDraft.statusCode(), listeningDraft.body());
+    assertEquals(204, request(admin, json, base, listening + "/" + json.readTree(listeningDraft.body()).get("id").asString(),
+        "DELETE", null, true).statusCode());
+
+    var chapter = post(admin, json, base, topics, draft, true);
+    assertEquals(201, chapter.statusCode(), chapter.body());
+    String topicId = json.readTree(chapter.body()).get("id").asString();
+    String lessons = "admin/materials/LESSONS";
+    var lesson = new java.util.HashMap<>(java.util.Map.of("topic_id", topicId, "level", "C2",
+        "title", "Lời chào", "summary", "Gặp bạn mới", "objective_code", "GREET", "learning_objective", "Chào và hỏi tên"));
+    assertEquals(422, post(admin, json, base, lessons, lesson, true).statusCode());
+    lesson.put("level", "A2");
+    var lessonDraft = post(admin, json, base, lessons, lesson, true);
+    assertEquals(201, lessonDraft.statusCode(), lessonDraft.body());
+    String lessonId = json.readTree(lessonDraft.body()).get("id").asString();
+    assertEquals(409, request(admin, json, base, topics + "/" + topicId, "DELETE", null, true).statusCode());
+    assertEquals(422, post(admin, json, base, lessons + "/" + lessonId + "/publish", null, true).statusCode());
+    assertEquals(204, post(admin, json, base, topics + "/" + topicId + "/publish", null, true).statusCode());
+    var edited = new java.util.HashMap<>(draft);
+    edited.put("name", "Chủ đề đã đổi tên");
+    var updated = request(admin, json, base, topics + "/" + topicId, "PUT", edited, true);
+    assertEquals(200, updated.statusCode(), updated.body());
+    assertEquals("ACTIVE", json.readTree(updated.body()).get("status").asString());
+    edited.put("code", "CHANGED_CODE");
+    assertEquals(409, request(admin, json, base, topics + "/" + topicId, "PUT", edited, true).statusCode());
+    assertEquals(204, post(admin, json, base, lessons + "/" + lessonId + "/publish", null, true).statusCode());
+
+    var lines = java.util.stream.IntStream.rangeClosed(1, 4).mapToObj(i -> java.util.Map.of(
+        "line_no", i, "speaker_label", i % 2 == 0 ? "Sam" : "Kim",
+        "text_en", "Hello!", "text_vi", "Xin chào!", "voice_key", "en-us-voice-a-v1")).toList();
+    var dialogue = post(admin, json, base, "admin/materials/DIALOGUES",
+        java.util.Map.of("lesson_id", lessonId, "sort_order", 1, "title", "Gặp bạn", "lines_json", lines), true);
+    assertEquals(201, dialogue.statusCode(), dialogue.body());
+    assertEquals(204, post(admin, json, base, "admin/materials/DIALOGUES/"
+        + json.readTree(dialogue.body()).get("id").asString() + "/publish", null, true).statusCode());
+
+    var drill = post(admin, json, base, "admin/materials/PRONUNCIATION",
+        java.util.Map.of("lesson_id", lessonId, "sort_order", 1, "reference_text", "How are you?",
+            "locale", "en-US", "mode", "READ_ALOUD"), true);
+    assertEquals(201, drill.statusCode(), drill.body());
+    assertEquals(204, post(admin, json, base, "admin/materials/PRONUNCIATION/"
+        + json.readTree(drill.body()).get("id").asString() + "/publish", null, true).statusCode());
+
+    long exercise = 201;
+    jdbc.update("UPDATE listening_exercises SET status='ACTIVE' WHERE id=?", exercise);
+    try {
+      var opened = post(learner, json, base, "listening/exercises/201/attempts",
+          java.util.Map.of("clientRequestId", "material-history-" + suffix), true);
+      assertEquals(200, opened.statusCode(), opened.body());
+      String attempt = "listening/attempts/" + json.readTree(opened.body()).get("id").asString();
+      assertEquals(200, post(learner, json, base, attempt + "/submit",
+          java.util.Map.of("draftVersion", 0, "answers", java.util.Map.of()), true).statusCode());
+      assertEquals(204, post(admin, json, base, listening + "/201/archive", null, true).statusCode());
+      var history = request(learner, json, base, attempt, "GET", null, false);
+      assertEquals(200, history.statusCode(), history.body());
+      assertEquals(0, json.readTree(history.body()).get("result").get("score").asInt());
+      assertFalse(json.readTree(history.body()).get("result").get("transcriptEn").asString().isBlank());
+      assertEquals(409, request(admin, json, base, listening + "/201", "DELETE", null, true).statusCode());
+    } finally {
+      jdbc.update("DELETE FROM listening_attempts WHERE user_id=? AND exercise_id=?", Long.parseLong(student.id()), exercise);
+      jdbc.update("UPDATE listening_exercises SET status='DRAFT' WHERE id=?", exercise);
+    }
+  }
+  private static ScenarioInput adminScenario(
       String code, String title, String status, List<String> levels) {
-    return new vn.englishconversation.admin.dto.AdminCatalog.ScenarioInput(code, title,
+    return adminScenario(code, title, status, levels, null);
+  }
+
+  private static ScenarioInput adminScenario(
+      String code, String title, String status, List<String> levels, List<ScenarioVariant> variants) {
+    return new ScenarioInput(code, title,
         "A synthetic lesson.", "Customer", "Waiter", "Order soup.", "At a fictional cafe.",
-        "Ask the A2 learner to order soup.", status, levels);
+        "Ask the A2 learner to order soup.", status, levels, variants);
+  }
+
+  @Test
+  void selectingRoleChangesPromptAndPreservesSnapshotAndRequestIdentity() {
+    var owner = owner();
+    String scenario = jdbc.queryForObject(
+        "SELECT CAST(id AS CHAR) FROM scenarios WHERE code='SHOP_EXCHANGE'", String.class);
+    String key = "exchange-reverse";
+    var reverse = new CreatePracticeRequest(scenario, "B1", key, "VOICE", "REVERSE");
+    var created = service.create(owner, reverse);
+    assertEquals("REVERSE", created.roleCode());
+    assertEquals("Hi, I'd like to exchange this shirt.", created.messages().getFirst().content());
+    assertEquals("Nhân viên quầy đổi hàng", created.learnerRole());
+    assertEquals("Khách hàng", created.aiRole());
+    assertTrue(created.communicationGoal().contains("hai phương án"));
+    assertTrue(provider.lastPrompt.instruction().contains("Play a customer"));
+    assertTrue(provider.lastPrompt.instruction().contains("Open naturally in the partner role"));
+    assertFalse(provider.lastPrompt.instruction().contains("one relevant question"));
+    assertEquals(created.id(), service.create(owner, reverse).id());
+    assertEquals(409, assertThrows(ApiException.class,
+        () -> service.create(owner, new CreatePracticeRequest(scenario, "B1", key, "VOICE"))).status);
+    assertEquals(404, assertThrows(ApiException.class, () -> service.create(owner,
+        new CreatePracticeRequest(scenario, "B1", "unknown-role", "TEXT", "MISSING"))).status);
+
+    assertEquals(404, assertThrows(ApiException.class, () -> service.create(owner,
+        new CreatePracticeRequest(scenario, "A2", "exchange-wrong-level", "TEXT"))).status);
+
+    var standard = service.create(owner, new CreatePracticeRequest(scenario, "B1", "exchange-default"));
+    assertEquals("DEFAULT", standard.roleCode());
+    assertEquals("Khách hàng", standard.learnerRole());
+    assertEquals("Nhân viên quầy đổi hàng", standard.aiRole());
+    assertEquals("TEXT", standard.mode());
+    assertTrue(provider.lastPrompt.instruction().contains("Play the returns clerk"));
+    long id = Long.parseLong(created.id());
+    String roleSql = "UPDATE scenario_role_variants SET learner_role=? WHERE scenario_id=? AND code='REVERSE'";
+    jdbc.update(roleSql, "Changed fixture role", Long.parseLong(scenario));
+    try {
+      var reopened = service.get(owner, id);
+      assertEquals("B1", reopened.selectedLevel());
+      assertEquals("VOICE", reopened.mode());
+      assertEquals("REVERSE", reopened.roleCode());
+      assertEquals(created.messages(), reopened.messages());
+      assertTrue(learning.history(owner, 0, 10).items().stream().anyMatch(entry -> entry.id().equals(created.id()) && entry.title().equals(created.title())));
+      assertEquals(created.learnerRole(), reopened.learnerRole());
+      assertEquals(created.communicationGoal(), reopened.communicationGoal());
+      service.send(owner, id, new SendTextRequest("May I see your receipt?", "exchange-role-turn"));
+      assertTrue(provider.lastPrompt.instruction().contains("Learner role: Nhân viên quầy đổi hàng"));
+      assertFalse(provider.lastPrompt.instruction().contains("Changed fixture role"));
+      assertEquals("COMPLETED", service.finish(owner, id).status());
+      provider.feedbackOutput = CLEAN_REVIEW;
+      try {
+        assertEquals("SUCCEEDED", service.generateFeedback(owner, id, false, false).status());
+      } finally {
+        provider.feedbackOutput = null;
+      }
+    } finally {
+      jdbc.update(roleSql, created.learnerRole(), Long.parseLong(scenario));
+    }
+  }
+
+  @Test
+  void explainsLatestAssistantOnceAndKeepsItOutsideDialogue() throws Exception {
+    var owner = owner();
+    var practice = service.create(owner, voicePractice());
+    long id = Long.parseLong(practice.id());
+    long opening = Long.parseLong(practice.messages().getFirst().id());
+    var input = new ExplanationRequest("explain-first", false, false);
+    assertEquals("NOT_STARTED", service.getExplanation(owner, id, opening).status());
+    assertEquals(404, assertThrows(ApiException.class,
+        () -> service.explain(owner(), id, opening, input)).status);
+    int before = provider.calls.get();
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    provider.entered = entered;
+    provider.release = release;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var job = executor.submit(() -> service.explain(owner, id, opening, input));
+      try {
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+        assertEquals("RUNNING", service.explain(owner, id, opening, input).status());
+        assertEquals(409, assertThrows(ApiException.class, () -> service.send(owner, id,
+            new SendTextRequest("Soup, please.", "explain-overlap"))).status);
+      } finally {
+        release.countDown();
+        provider.entered = null;
+        provider.release = null;
+      }
+      var result = job.get(5, TimeUnit.SECONDS);
+      assertEquals("SUCCEEDED", result.status());
+      assertEquals("What do you want to order?", result.simpleEnglish());
+      assertEquals("Bạn muốn gọi món gì?", result.meaningVi());
+      assertEquals(result, service.getExplanation(owner, id, opening));
+      assertEquals(result, service.explain(owner, id, opening, input));
+      assertEquals(before + 1, provider.calls.get());
+    }
+    assertEquals(practice.messages(), service.get(owner, id).messages());
+    assertEquals(0, service.get(owner, id).learnerTurns());
+    var sent = service.send(owner, id, new SendTextRequest("Soup, please.", "explain-normal-turn"));
+    assertFalse(provider.lastPrompt.history().stream().anyMatch(item ->
+        item.content().equals("What do you want to order?")));
+    long newest = Long.parseLong(sent.messages().getLast().id());
+    assertEquals(409, assertThrows(ApiException.class, () -> service.explain(owner, id, newest, input)).status);
+    var another = service.create(owner, voicePractice());
+    long anotherId = Long.parseLong(another.id());
+    long anotherOpening = Long.parseLong(another.messages().getFirst().id());
+    assertEquals(404, assertThrows(ApiException.class,
+        () -> service.explain(owner, id, anotherOpening, input)).status);
+    service.send(owner, anotherId, new SendTextRequest("Soup, please.", "another-chat-turn"));
+    assertEquals(409, assertThrows(ApiException.class, () -> service.explain(owner, anotherId, anotherOpening,
+        new ExplanationRequest("obsolete-explain", false, false))).status);
+    assertEquals(404, assertThrows(ApiException.class, () -> service.getExplanation(owner, id,
+        Long.parseLong(sent.messages().get(1).id()))).status);
+    learning.deleteSession(owner, id);
+    assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM assistant_explanations WHERE session_id=?",
+        Integer.class, id));
+  }
+
+  @Test
+  void explanationHandlesTimeoutValidationRetryAndQuota() {
+    var owner = owner();
+    var practice = service.create(owner, draft());
+    long id = Long.parseLong(practice.id());
+    long opening = Long.parseLong(practice.messages().getFirst().id());
+    provider.timeout = true;
+    var failure = service.explain(owner, id, opening, new ExplanationRequest("explain-retry", false, false));
+    assertEquals("UNKNOWN", failure.status());
+    assertTrue(failure.retryable());
+    assertEquals(409, assertThrows(ApiException.class, () -> service.explain(owner, id, opening,
+        new ExplanationRequest("explain-retry", true, false))).status);
+    provider.explanationOutput = """
+        {"simpleEnglish":"What do you want to order?","meaningVi":" "} {}
+        """;
+    try {
+      var invalid = service.explain(owner, id, opening, new ExplanationRequest("explain-retry", true, true));
+      assertEquals("EXPLANATION_INVALID", invalid.errorCode());
+      assertFalse(invalid.retryable());
+      assertNull(invalid.simpleEnglish());
+    } finally {
+      provider.explanationOutput = VALID_EXPLANATION;
+    }
+    var next = service.send(owner, id, new SendTextRequest("Soup please.", "explain-after-timeout"));
+    assertEquals(409, assertThrows(ApiException.class, () -> service.explain(owner, id, opening,
+        new ExplanationRequest("explain-retry", true, true))).status);
+    Long operation = jdbc.queryForObject("SELECT ai_request_id FROM assistant_explanations WHERE session_id=?",
+        Long.class, id);
+    for (int number = 3; number <= 62; number++) {
+      jdbc.update("""
+          INSERT INTO ai_attempts(ai_request_id,attempt_no,model_name,status,started_at,finished_at)
+          VALUES (?,?,'quota-fixture','FAILED',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+          """, operation, number);
+    }
+    long latest = Long.parseLong(next.messages().getLast().id());
+    int before = provider.calls.get();
+    assertEquals(429, assertThrows(ApiException.class, () -> service.explain(owner, id, latest,
+        new ExplanationRequest("explain-quota", false, false))).status);
+    assertEquals(before, provider.calls.get());
+    assertEquals("NOT_STARTED", service.getExplanation(owner, id, latest).status());
+  }
+
+  @Test
+  void aggregatesOnlyRepeatedErrorsAcrossDifferentMessages() {
+    var owner = owner();
+    long id = Long.parseLong(service.create(owner, draft()).id());
+    service.send(owner, id, new SendTextRequest("I want apple, I want orange.", "repeat-error-first"));
+    service.send(owner, id, new SendTextRequest("I want egg.", "repeat-error-second"));
+    var latest = service.send(owner, id, new SendTextRequest("I want a drink.", "repeat-error-third"));
+    String first = latest.messages().get(1).id(), second = latest.messages().get(3).id();
+    String third = latest.messages().get(5).id();
+    String correction = """
+        {"sourceMessageId":"%s","itemType":"%s","category":"GRAMMAR","ruleCode":"ARTICLE",
+         "originalText":"%s","suggestedText":"%s","explanationVi":"Thêm mạo từ."}
+        """;
+    provider.feedbackOutput = CLEAN_REVIEW.replace("\"corrections\":[]", "\"corrections\":[" +
+        correction.formatted(first, "ERROR", "want apple", "want an apple") + "," +
+        correction.formatted(first, "ERROR", "want orange", "want an orange") + "," +
+        correction.formatted(second, "ERROR", "want egg", "want an egg") + "," +
+        correction.formatted(third, "IMPROVEMENT", "I want a drink", "May I have a drink") + "]");
+    service.finish(owner, id);
+    var result = service.generateFeedback(owner, id, false, false);
+    assertEquals("SUCCEEDED", result.status());
+    assertEquals(1, result.repeatedErrors().size());
+    var group = result.repeatedErrors().getFirst();
+    assertEquals("ARTICLE", group.ruleCode());
+    assertEquals(2, group.messageCount());
+    assertEquals(first, group.example().sourceMessageId());
+    int count = provider.calls.get();
+    assertEquals(result, service.getFeedback(owner, id));
+    assertEquals(count, provider.calls.get());
+  }
+
+  @Test
+  void finishCountsOnlyPracticesWithSuccessfulExchanges() {
+    var owner = owner();
+    long openingOnly = Long.parseLong(service.create(owner, draft()).id());
+    long failedOnly = Long.parseLong(service.create(owner, draft()).id());
+    long successful = Long.parseLong(service.create(owner, draft()).id());
+    long failedLast = Long.parseLong(service.create(owner, draft()).id());
+
+    assertEquals("ABANDONED", service.finish(owner, openingOnly).status());
+    provider.timeout = true;
+    service.send(owner, failedOnly, new SendTextRequest("Soup please.", "finish-first-failed"));
+    assertEquals("ABANDONED", service.finish(owner, failedOnly).status());
+    assertEquals("Soup please.", service.get(owner, failedOnly).messages().getLast().content());
+    assertEquals(409, assertThrows(ApiException.class,
+        () -> service.generateFeedback(owner, failedOnly, false, false)).status);
+    assertEquals(0, learning.statistics(owner).completedSessions());
+    assertEquals(1, learning.statistics(owner).learnerTurns());
+
+    service.send(owner, successful, new SendTextRequest("Tea please.", "finish-successful"));
+    assertEquals("COMPLETED", service.finish(owner, successful).status());
+    service.send(owner, failedLast, new SendTextRequest("Water please.", "finish-first-success"));
+    provider.timeout = true;
+    service.send(owner, failedLast, new SendTextRequest("No ice please.", "finish-last-failed"));
+    var result = service.finish(owner, failedLast);
+    assertEquals("COMPLETED", result.status());
+    assertEquals("No ice please.", result.messages().getLast().content());
+    assertEquals(result, service.finish(owner, failedLast));
+    assertEquals(2, learning.statistics(owner).completedSessions());
+    var statuses = learning.history(owner, 0, 12).items().stream()
+        .collect(java.util.stream.Collectors.toMap(entry -> entry.id(), entry -> entry.status()));
+    assertEquals("ABANDONED", statuses.get(Long.toString(failedOnly)));
+    assertEquals("COMPLETED", statuses.get(Long.toString(failedLast)));
+    provider.feedbackOutput = CLEAN_REVIEW;
+    assertEquals("SUCCEEDED", service.generateFeedback(owner, failedLast, false, false).status());
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "G6_AZURE_FIXTURE", matches = "true")
+  void queuesOriginalVoiceOnlyAfterConfirmation() throws Exception {
+    org.mockito.Mockito.when(pronunciationProvider.available()).thenReturn(true);
+    org.mockito.Mockito.when(pronunciationProvider.assess(
+        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull(),
+        org.mockito.ArgumentMatchers.eq("en-US")))
+        .thenThrow(new vn.englishconversation.pronunciation.service.PronunciationProvider.Failure(
+            "AZURE_OUTCOME_UNKNOWN", false, true));
+    var owner = owner();
+    long session = Long.parseLong(service.create(owner, voicePractice()).id());
+    long audio = Long.parseLong(service.uploadVoice(owner, session, "azure-fixture-audio",
+        WaveAudio.read(wave(16000, 123, 1)), false).id());
+    String count = "SELECT COUNT(*) FROM pronunciation_attempts WHERE audio_submission_id=?";
+    assertEquals(0, jdbc.queryForObject(count, Integer.class, audio));
+    var confirmed = service.confirmVoice(owner, session, audio, "This is the edited text.", true);
+    assertEquals("This is the edited text.", confirmed.messages().get(1).content());
+    assertEquals(1, service.confirmVoice(owner, session, audio, "This is the edited text.", true).learnerTurns());
+    assertEquals(1, jdbc.queryForObject(count, Integer.class, audio));
+    assertEquals("COMPLETED", service.finish(owner, session).status());
+    for (int n = 0; n < 45; n++) {
+      if ("UNKNOWN".equals(service.get(owner, session).messages().get(1).pronunciation().status())) return;
+      Thread.sleep(200);
+    }
+    fail("Expected Azure fixture to complete independently of CHAT");
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "G6_AZURE_FIXTURE", matches = "true")
+  void keepsChatAvailableForExpiredAudioAndReleasesFailedRecordingForRetry() {
+    org.mockito.Mockito.when(pronunciationProvider.available()).thenReturn(true);
+    var owner = owner();
+    long session = Long.parseLong(service.create(owner, voicePractice()).id());
+    var audio = WaveAudio.read(wave(16000, 123, 1));
+    provider.timeout = true;
+    var failed = service.uploadVoice(owner, session, "azure-enabled-retry", audio, false);
+    assertEquals("FAILED", failed.status());
+    long draftId = Long.parseLong(failed.id());
+    assertNull(jdbc.queryForObject("SELECT storage_key FROM audio_submissions WHERE id=?", String.class, draftId));
+    assertEquals("READY", service.uploadVoice(owner, session, "azure-enabled-retry", audio, true).status());
+    assertNotNull(jdbc.queryForObject("SELECT storage_key FROM audio_submissions WHERE id=?", String.class, draftId));
+    jdbc.update("UPDATE audio_submissions SET expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE id=?", draftId);
+    voiceStorage.sweep();
+    assertNull(jdbc.queryForObject("SELECT storage_key FROM audio_submissions WHERE id=?", String.class, draftId));
+    var confirmed = service.confirmVoice(owner, session, draftId, "Edited text.", true);
+    assertEquals(1, confirmed.learnerTurns());
+    assertNull(confirmed.messages().get(1).pronunciation());
+    org.mockito.Mockito.verify(pronunciationProvider, org.mockito.Mockito.never())
+        .assess(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void rejectsNoSpeechWithoutCreatingALearnerTurn() {
+    var owner = owner();
+    long session = Long.parseLong(service.create(owner, voicePractice()).id());
+    provider.transcriptionOutput = "NO_SPEECH";
+    try {
+      var result = service.uploadVoice(owner, session, "no-speech-fixture",
+          WaveAudio.read(wave(16000, 123, 1)), false);
+      assertEquals("FAILED", result.status());
+      assertEquals("NO_SPEECH", result.errorCode());
+      assertNull(result.transcript());
+      assertEquals(0, service.get(owner, session).learnerTurns());
+    } finally {
+      provider.transcriptionOutput = "A bowl of soup.";
+    }
   }
 
   @Test
   void voiceKeepsDraftSeparateAndClaimsOneEditedTurn() {
     var owner = owner();
     var other = owner();
-    long id = Long.parseLong(service.create(owner, draft()).id());
+    long id = Long.parseLong(service.create(owner, voicePractice()).id());
     int before = provider.calls.get();
     WaveAudio wave = WaveAudio.read(wave(16000, 123, 1));
     var uploaded = service.uploadVoice(owner, id, "voice-one-take", wave, false);
@@ -171,7 +668,12 @@ class PracticeMysqlTest {
     assertEquals(0, service.get(owner, id).learnerTurns());
     assertEquals(1, service.get(owner, id).messages().size());
     assertEquals(uploaded, service.uploadVoice(owner, id, "voice-one-take", wave, false));
-    assertEquals(before + 1, provider.calls.get());
+    var newer = service.uploadVoice(owner, id, "voice-newer-take", wave, false);
+    assertEquals(newer, service.recoverVoice(owner, id).orElseThrow());
+    service.discardVoice(owner, id, Long.parseLong(newer.id()));
+    assertEquals(uploaded, service.recoverVoice(owner, id).orElseThrow());
+    assertEquals(404, assertThrows(ApiException.class, () -> service.recoverVoice(other, id)).status);
+    assertEquals(before + 2, provider.calls.get());
     assertNull(jdbc.queryForObject("SELECT storage_key FROM audio_submissions WHERE id=?", String.class, audioId));
     assertEquals(404, assertThrows(ApiException.class, () -> service.getVoice(other, id, audioId)).status);
     assertEquals(409, assertThrows(ApiException.class, () -> service.uploadVoice(
@@ -181,7 +683,8 @@ class PracticeMysqlTest {
     assertEquals("I would like a bowl of soup.", response.messages().get(1).content());
     assertEquals("LEARNER_AUDIO", response.turns().getLast().kind());
     assertEquals(1, service.confirmVoice(owner, id, audioId, "I would like a bowl of soup.").learnerTurns());
-    assertEquals(before + 2, provider.calls.get());
+    assertEquals(before + 3, provider.calls.get());
+    assertTrue(service.recoverVoice(owner, id).isEmpty());
     assertEquals(409, assertThrows(ApiException.class, () -> service.confirmVoice(owner, id, audioId, "An edit too late.")).status);
     assertNull(service.getVoice(owner, id, audioId).transcript());
     assertEquals("AUDIO", jdbc.queryForObject("SELECT input_type FROM messages WHERE audio_submission_id=?", String.class, audioId));
@@ -190,7 +693,7 @@ class PracticeMysqlTest {
   @Test
   void voiceTimeoutRetryAndIndependentDraftExpiry() {
     var owner = owner();
-    long id = Long.parseLong(service.create(owner, draft()).id());
+    long id = Long.parseLong(service.create(owner, voicePractice()).id());
     WaveAudio wave = WaveAudio.read(wave(160, 47, 1));
     provider.timeout = true;
     var failure = service.uploadVoice(owner, id, "voice-retry-id", wave, false);
@@ -205,8 +708,10 @@ class PracticeMysqlTest {
     jdbc.update("UPDATE audio_submissions SET expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE id=?", key);
     voiceStorage.sweep();
     assertEquals("READY", service.getVoice(owner, id, key).status());
+    assertEquals(ready, service.recoverVoice(owner, id).orElseThrow());
     jdbc.update("UPDATE audio_submissions SET transcript_expires_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE id=?", key);
     assertEquals("EXPIRED", service.getVoice(owner, id, key).status());
+    assertTrue(service.recoverVoice(owner, id).isEmpty());
     assertEquals(409, assertThrows(ApiException.class, () -> service.confirmVoice(owner, id, key, "Too late.")).status);
     voiceStorage.sweep();
     assertNull(jdbc.queryForObject("SELECT draft_transcript FROM audio_submissions WHERE id=?", String.class, key));
@@ -216,7 +721,7 @@ class PracticeMysqlTest {
   @Test
   void deletingPracticeDuringTranscriptionKeepsCleanupReferenceAndBlocksLateDraft() throws Exception {
     var owner = owner();
-    long id = Long.parseLong(service.create(owner, draft()).id());
+    long id = Long.parseLong(service.create(owner, voicePractice()).id());
     WaveAudio wave = WaveAudio.read(wave(160, 123, 1));
     var entered = new CountDownLatch(1);
     var release = new CountDownLatch(1);
@@ -228,6 +733,7 @@ class PracticeMysqlTest {
         assertTrue(entered.await(5, TimeUnit.SECONDS));
         var replay = service.uploadVoice(owner, id, "voice-delete-running", wave, false);
         assertEquals("TRANSCRIBING", replay.status());
+        assertEquals(replay, service.recoverVoice(owner, id).orElseThrow());
         assertEquals(409, assertThrows(ApiException.class, () -> service.send(
             owner, id, new SendTextRequest("Soup please.", "voice-racing-text"))).status);
         learning.deleteSession(owner, id);
@@ -246,6 +752,11 @@ class PracticeMysqlTest {
     }
   }
 
+  private CreatePracticeRequest voicePractice() {
+    var request = draft();
+    return new CreatePracticeRequest(request.scenarioId(), request.level(), request.clientRequestId(), "VOICE");
+  }
+
   @Test
   void validatesActualPcmAndDuration() {
     assertEquals(400, assertThrows(ApiException.class, () -> WaveAudio.read(wave(1, 0, 1))).status);
@@ -261,6 +772,46 @@ class PracticeMysqlTest {
         .putInt(16000).putInt(32000).putShort((short) 2).putShort((short) 16)
         .putInt(0x61746164).putInt(frames * 2).putShort((short) sample);
     return new MockMultipartFile("file", "recording.wav", "audio/wav", bytes.array());
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "G6_AZURE_FIXTURE", matches = "true")
+  void deletionKeepsAzureFileReferenceUntilWorkerCleansIt() throws Exception {
+    org.mockito.Mockito.when(pronunciationProvider.available()).thenReturn(true);
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var path = new java.util.concurrent.atomic.AtomicReference<java.nio.file.Path>();
+    org.mockito.Mockito.when(pronunciationProvider.assess(
+        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull(),
+        org.mockito.ArgumentMatchers.eq("en-US"))).thenAnswer(call -> {
+          path.set(call.getArgument(0));
+          entered.countDown();
+          if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Fixture timed out");
+          var score = java.math.BigDecimal.valueOf(85);
+          return new vn.englishconversation.pronunciation.dto.PronunciationData.Assessment(
+              "Late result", score, score, score, null, List.of());
+        });
+    var owner = owner();
+    long session = Long.parseLong(service.create(owner, voicePractice()).id());
+    long audio = Long.parseLong(service.uploadVoice(owner, session, "delete-azure-audio",
+        WaveAudio.read(wave(16000, 123, 1)), false).id());
+    service.confirmVoice(owner, session, audio, "My text.", true);
+    try {
+      assertTrue(entered.await(5, TimeUnit.SECONDS));
+      learning.deleteSession(owner, session);
+      voiceStorage.sweep();
+      assertEquals(1, jdbc.queryForObject(
+          "SELECT COUNT(*) FROM audio_submissions WHERE id=? AND status='DELETION_PENDING'",
+          Integer.class, audio));
+    } finally {
+      release.countDown();
+    }
+    for (int n = 0; n < 45 && java.nio.file.Files.exists(path.get()); n++) Thread.sleep(150);
+    assertFalse(java.nio.file.Files.exists(path.get()));
+    voiceStorage.sweep();
+    assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM pronunciation_attempts WHERE audio_submission_id=?",
+        Integer.class, audio));
+    assertEquals(404, assertThrows(ApiException.class, () -> service.get(owner, session)).status);
   }
 
   @Test
@@ -303,6 +854,9 @@ class PracticeMysqlTest {
                             "NEEDS_REVIEW", "review-attempt-1")))
             .status);
     assertEquals(1, learning.history(owner, 0, 1).total());
+    assertEquals(Long.toString(id), learning.history(owner, 0, 1).items().getFirst().id());
+    assertTrue(learning.history(owner, 1, 1).items().isEmpty());
+    assertEquals(Long.toString(otherId), learning.history(other, 0, 1).items().getFirst().id());
     assertEquals(
         404, assertThrows(ApiException.class, () -> learning.deleteSession(other, id)).status);
     learning.deleteSession(owner, id);
@@ -389,6 +943,25 @@ class PracticeMysqlTest {
   }
 
   @Test
+  void accountDeletionRejectsLateAiAndRemovesPracticeAudioAndRequests() throws Exception {
+    var owner=owner();long id=Long.parseLong(service.create(owner,draft()).id());
+    service.uploadVoice(owner,id,"account-delete-audio",WaveAudio.read(wave(160,47,1)),false);
+    provider.entered=new CountDownLatch(1);provider.release=new CountDownLatch(1);
+    try(var executor=Executors.newVirtualThreadPerTaskExecutor()) {
+      var pending=executor.submit(()->service.send(owner,id,new SendTextRequest("Soup, please.","account-delete-running")));
+      try {
+        assertTrue(provider.entered.await(5,TimeUnit.SECONDS));
+        lifecycle.delete(owner,"Fixture account secret only","DELETE");deletion.sweep();
+      } finally { provider.release.countDown(); }
+      var failure=assertThrows(ExecutionException.class,()->pending.get(6,TimeUnit.SECONDS));
+      assertEquals(401,assertInstanceOf(ApiException.class,failure.getCause()).status);
+      for(String table:List.of("users","practice_sessions","ai_requests","review_items"))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM "+table+" WHERE "+(table.equals("users")?"id":"user_id")+"=?",Integer.class,owner.id()));
+      assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM audio_submissions WHERE session_id=?",Integer.class,id));
+    } finally { provider.entered=null;provider.release=null; }
+  }
+
+  @Test
   void deletingWhileProviderRunsDiscardsLateResultAndDetachesMetadata() throws Exception {
     var owner = owner();
     long id = Long.parseLong(service.create(owner, draft()).id());
@@ -460,12 +1033,26 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
     assertEquals("VOICE", opening.get("mode").asString());
     assertFalse(opening.has("instruction"));
     String path = "practice-sessions/" + opening.get("id").asString();
+    String explanationPath = path + "/messages/" + opening.get("messages").get(0).get("id").asString()
+        + "/explanation";
+    var explanationInput = new ExplanationRequest("http-explanation", false, false);
+    assertEquals(403, post(browser, json, base, explanationPath, explanationInput, false).statusCode());
+    var explanation = post(browser, json, base, explanationPath, explanationInput, true);
+    assertEquals(200, explanation.statusCode(), explanation.body());
+    assertEquals("SUCCEEDED", json.readTree(explanation.body()).get("status").asString());
+    assertEquals(json.readTree(explanation.body()), json.readTree(
+        request(browser, json, base, explanationPath, "GET", null, false).body()));
     assertEquals(403, multipart(browser, json, base, path, false).statusCode());
     var voice = multipart(browser, json, base, path, true);
     assertEquals(200, voice.statusCode(), voice.body());
     var voiceBody = json.readTree(voice.body());
     assertEquals("READY", voiceBody.get("status").asString());
     assertFalse(voiceBody.has("storageKey"));
+    var recovered = request(browser, json, base, path + "/audio", "GET", null, false);
+    assertEquals(200, recovered.statusCode());
+    assertEquals(voiceBody, json.readTree(recovered.body()));
+    assertEquals(401, request(java.net.http.HttpClient.newHttpClient(), json, base,
+        path + "/audio", "GET", null, false).statusCode());
     String voicePath = path + "/audio/" + voiceBody.get("id").asString();
     assertEquals(403, post(browser, json, base, voicePath + "/confirm",
         java.util.Map.of("content", "I would like soup."), false).statusCode());
@@ -508,6 +1095,7 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
     assertEquals(beforeReplay, provider.calls.get());
     var finished = post(browser, json, base, path + "/finish", java.util.Map.of(), true);
     assertEquals("COMPLETED", json.readTree(finished.body()).get("status").asString());
+    assertEquals(204, request(browser, json, base, path + "/audio", "GET", null, false).statusCode());
     assertEquals(
         403, post(browser, json, base, path + "/feedback", java.util.Map.of(), false).statusCode());
     provider.feedbackOutput = CLEAN_REVIEW;
@@ -628,7 +1216,7 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
     String url = System.getenv("SPRING_DATASOURCE_URL");
     if (url == null
         || !url.matches(
-            "jdbc:mysql://127\\.0\\.0\\.1:3307/phase[12]_auth_[0-9]{14}\\?connectionTimeZone=UTC"))
+            "jdbc:mysql://127\\.0\\.0\\.1:(?:3307/phase[12]_auth_[0-9]{14}|13306/g6_test_[0-9a-f]{12})\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use the isolated MySQL test script");
     properties.add("spring.datasource.url", () -> url);
   }
@@ -645,7 +1233,10 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
   static class FixtureProvider implements TextProvider {
     final AtomicInteger calls = new AtomicInteger();
     volatile boolean timeout;
+    volatile String transcriptionOutput = "A bowl of soup.";
     volatile String feedbackOutput;
+    volatile String explanationOutput = VALID_EXPLANATION;
+    volatile Prompt lastPrompt;
     volatile CountDownLatch entered;
     volatile CountDownLatch release;
 
@@ -661,6 +1252,7 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
       if (TransactionSynchronizationManager.isActualTransactionActive())
         throw new AssertionError("Provider called inside a transaction");
       calls.incrementAndGet();
+      lastPrompt = prompt;
       if (entered != null) {
         entered.countDown();
         try {
@@ -675,8 +1267,11 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
         return Outcome.failure("PROVIDER_TIMEOUT", true, false, 0);
       }
       if (prompt.waveAudio() != null)
-        return new Outcome("A bowl of soup.", "fixture-only", "wave-fixture",
+        return new Outcome(transcriptionOutput, "fixture-only", "wave-fixture",
             40L, 6L, false, null, false, false, 0);
+      if (prompt.schema().toString().contains("simpleEnglish"))
+        return new Outcome(explanationOutput, model(), "explanation-fixture", 21L, 8L,
+            false, null, false, false, 0);
       if (!prompt.schema().isEmpty()) {
         assertTrue(prompt.instruction().contains("Never grade pronunciation"));
         return new Outcome(
@@ -691,9 +1286,12 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
             false,
             0);
       }
-      assertTrue(prompt.instruction().contains("A2"));
+      assertTrue(prompt.instruction().contains("A2") || prompt.instruction().contains("B1"));
+      String reply = prompt.instruction().contains("Open naturally in the partner role")
+          && prompt.instruction().contains("Play a customer")
+          ? "Hi, I'd like to exchange this shirt." : "Hello! What would you like to order?";
       return new Outcome(
-          "Hello! What would you like to order?",
+          reply,
           "fixture-only",
           "fixture-response",
           21L,
@@ -705,6 +1303,10 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
           0);
     }
   }
+
+  private static final String VALID_EXPLANATION = """
+      {"simpleEnglish":"What do you want to order?","meaningVi":"Bạn muốn gọi món gì?"}
+      """;
 
   private static final String CLEAN_REVIEW =
       """
@@ -788,9 +1390,13 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
         "originalText":"%s","suggestedText":"different text","explanationVi":"Giải thích."}]
         """;
     String source = sent.messages().get(1).id();
+    long otherSession = Long.parseLong(service.create(owner, draft()).id());
+    String foreignSource = service.send(owner, otherSession,
+        new SendTextRequest("I would like soup, please.", "foreign-feedback-source"))
+        .messages().get(1).id();
     for (String invalid :
         java.util.List.of(
-            item.formatted("999999", "ERROR", "GRAMMAR", "ARTICLE", "soup"),
+            item.formatted(foreignSource, "ERROR", "GRAMMAR", "ARTICLE", "soup"),
             item.formatted(source, "ERROR", "GRAMMAR", "ARTICLE", "invented fragment"),
             item.formatted(source, "ERROR", "EXPRESSION", "POLITENESS", "soup"),
             item.formatted(source, "IMPROVEMENT", "GRAMMAR", "WORD_CHOICE", "soup"))) {
@@ -810,14 +1416,14 @@ WHERE r.user_id=? AND r.session_id IS NULL AND a.status='UNKNOWN' AND a.error_co
 
   private AccountPrincipal owner() {
     String email = "chat-" + java.util.UUID.randomUUID() + "@example.test";
-    return new AccountPrincipal(
-        Long.parseLong(accounts.register(email, "Fixture account secret only").id()), 0);
+    long user=Long.parseLong(accounts.register(email, "Fixture account secret only").id());
+    return new AccountPrincipal(user, 0);
   }
 
   private CreatePracticeRequest draft() {
     return new CreatePracticeRequest(
         jdbc.queryForObject(
-            "SELECT CAST(id AS CHAR) FROM scenarios WHERE code='RESTAURANT_ORDER'", String.class),
+            "SELECT CAST(id AS CHAR) FROM scenarios WHERE code='CLUB_INTRO'", String.class),
         "A2",
         java.util.UUID.randomUUID().toString());
   }
@@ -887,6 +1493,25 @@ WHERE r.session_id=? AND a.latency_ms IS NOT NULL AND a.input_tokens=21 AND a.es
 """,
             Integer.class,
             id));
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "G62_CONTEXT_FIXTURE", matches = "true")
+  void trimsOldContextAndKeepsLatestMessageAndStoredTranscript() {
+    var owner = owner();
+    long id = Long.parseLong(service.create(owner, draft()).id());
+    String earliest = "Earlier context. " + "a".repeat(700);
+    service.send(owner, id, new SendTextRequest(earliest, "context-first"));
+    for (int n = 0; n < 3; n++)
+      service.send(owner, id, new SendTextRequest("Recent context. " + "b".repeat(700), "context-middle-" + n));
+    var response = service.send(owner, id, new SendTextRequest("Latest input.", "context-latest"));
+    var prompt = provider.lastPrompt;
+    assertEquals("Latest input.", prompt.history().getLast().content());
+    assertTrue(prompt.history().stream().noneMatch(line -> earliest.equals(line.content())));
+    assertTrue(prompt.instruction().length() + prompt.history().stream()
+        .mapToInt(line -> line.content().length()).sum() <= 2400);
+    assertEquals(5, response.learnerTurns());
+    assertTrue(response.messages().stream().anyMatch(line -> earliest.equals(line.content())));
   }
 
   @Test

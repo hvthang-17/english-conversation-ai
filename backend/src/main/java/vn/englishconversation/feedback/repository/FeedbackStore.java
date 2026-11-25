@@ -1,22 +1,23 @@
 package vn.englishconversation.feedback.repository;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
-import vn.englishconversation.conversation.repository.PracticeStore;
-import vn.englishconversation.conversation.repository.PracticeStore.Row;
+import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.common.repository.JdbcStore.Row;
 import vn.englishconversation.feedback.dto.*;
 import vn.englishconversation.feedback.dto.FeedbackResult.*;
 
 @Repository
 @Profile("!bootstrap")
 public class FeedbackStore {
-  private final PracticeStore db;
+  private final JdbcStore db;
   private final ObjectMapper json = new ObjectMapper();
 
-  public FeedbackStore(PracticeStore db) {
+  public FeedbackStore(JdbcStore db) {
     this.db = db;
   }
 
@@ -95,13 +96,13 @@ generated_at=UTC_TIMESTAMP(6),updated_at=UTC_TIMESTAMP(6) WHERE id=?
             """,
             session);
     if (optional.isEmpty())
-      return new FeedbackResponse("NOT_STARTED", null, false, 0, null, List.of());
+      return new FeedbackResponse("NOT_STARTED", null, false, 0, null, List.of(), List.of());
     Row row = optional.get();
     String status = row.text("status");
     int attempts = (int) row.number("attempt_count");
     boolean retry = attempts < maxAttempts && ("UNKNOWN".equals(status) || row.flag("retryable"));
     if (!"SUCCEEDED".equals(status))
-      return new FeedbackResponse(status, row.text("error_code"), retry, attempts, null, List.of());
+      return new FeedbackResponse(status, row.text("error_code"), retry, attempts, null, List.of(), List.of());
     long id = row.number("id");
     var corrections =
         db.rows("SELECT * FROM feedback_items WHERE feedback_id=? ORDER BY sort_order", id).stream()
@@ -140,6 +141,20 @@ generated_at=UTC_TIMESTAMP(6),updated_at=UTC_TIMESTAMP(6) WHERE id=?
         false,
         attempts,
         result,
-        suggestions.stream().map(item -> item.text("id")).toList());
+        suggestions.stream().map(item -> item.text("id")).toList(),
+        repeatedErrors(corrections));
+  }
+
+  private static List<FeedbackResponse.RepeatedError> repeatedErrors(List<Correction> corrections) {
+    return corrections.stream().filter(item -> "ERROR".equals(item.itemType()))
+        .collect(java.util.stream.Collectors.groupingBy(Correction::ruleCode))
+        .entrySet().stream()
+        .map(group -> new FeedbackResponse.RepeatedError(group.getKey(), group.getValue().getFirst().category(),
+            (int) group.getValue().stream().map(Correction::sourceMessageId).distinct().count(),
+            group.getValue().getFirst()))
+        .filter(group -> group.messageCount() >= 2)
+        .sorted(Comparator.comparingInt(FeedbackResponse.RepeatedError::messageCount).reversed()
+            .thenComparing(FeedbackResponse.RepeatedError::ruleCode))
+        .limit(3).toList();
   }
 }

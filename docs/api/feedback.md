@@ -1,5 +1,7 @@
 # API nhận xét cuối buổi
 
+Phản hồi thành công có `repeatedErrors` lấy từ các mục ERROR đã lưu. Mỗi phần tử gồm `ruleCode`, `category`, `messageCount` và `example` (một correction nguồn). Hệ thống đếm tin nhắn nguồn khác nhau và chỉ hiện nhóm có ít nhất hai tin, sắp giảm dần theo số đếm rồi tăng dần theo mã, tối đa ba nhóm. Các trạng thái chưa thành công và buổi không có lỗi lặp trả mảng rỗng. Hợp đồng áp dụng cả cho phản hồi đã lưu trước đó.
+
 Các endpoint nằm dưới `/api/v1/practice-sessions/{id}/feedback`. Tất cả yêu cầu Session hợp lệ và quyền sở hữu buổi. Hai thao tác POST yêu cầu CSRF.
 
 | Thao tác | Kết quả |

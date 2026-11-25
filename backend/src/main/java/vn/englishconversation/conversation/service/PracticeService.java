@@ -19,37 +19,42 @@ import vn.englishconversation.ai.provider.TextProvider.*;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.conversation.dto.*;
-import vn.englishconversation.conversation.repository.PracticeStore;
-import vn.englishconversation.conversation.repository.PracticeStore.Row;
+import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.common.repository.JdbcStore.Row;
 import vn.englishconversation.feedback.dto.*;
 import vn.englishconversation.feedback.repository.FeedbackStore;
 import vn.englishconversation.feedback.service.FeedbackAnalysis;
 import vn.englishconversation.scenario.service.CatalogService;
-import vn.englishconversation.voice.*;
+import vn.englishconversation.voice.dto.VoiceDraft;
+import vn.englishconversation.voice.service.VoiceStorage;
+import vn.englishconversation.voice.service.WaveAudio;
 
 @Service
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class PracticeService {
   private static final int MAX_TURNS = 20;
-  private final PracticeStore db;
+  private final JdbcStore db;
   private final DataSource dataSource;
   private final TextProvider provider;
   private final ChatSettings config;
   private final FeedbackAnalysis feedbackAnalysis;
   private final FeedbackStore feedback;
   private final VoiceStorage voiceStorage;
+  private final java.util.Optional<vn.englishconversation.pronunciation.service.ConversationPronunciation> pronunciation;
   private final TransactionTemplate tx;
   private final ObjectMapper json = new ObjectMapper();
 
   public PracticeService(
-      PracticeStore db,
+      JdbcStore db,
       DataSource dataSource,
       TextProvider provider,
       ChatSettings config,
       PlatformTransactionManager manager,
       FeedbackAnalysis feedbackAnalysis,
       FeedbackStore feedback,
-      VoiceStorage voiceStorage) {
+      VoiceStorage voiceStorage,
+      java.util.Optional<vn.englishconversation.pronunciation.service.ConversationPronunciation> pronunciation) {
+    this.pronunciation = pronunciation;
     this.db = db;
     this.dataSource = dataSource;
     this.provider = provider;
@@ -91,7 +96,8 @@ public class PracticeService {
                 var row = prior.get();
                 if (row.number("scenario_id") != scenario
                     || !input.level().equals(row.text("selected_level"))
-                    || !input.mode().equals(row.text("initial_mode"))) throw reused();
+                    || !input.mode().equals(row.text("initial_mode"))
+                    || !input.roleCode().equals(row.text("role_code"))) throw reused();
                 expire(row.number("id"));
                 return Work.replay(row.number("id"), opening(row.number("id")));
               }
@@ -109,21 +115,27 @@ WHERE s.id=? AND l.level=? AND t.is_active=TRUE AND s.status='ACTIVE' FOR SHARE
                           () ->
                               error(
                                   404, "SCENARIO_NOT_FOUND", "Bài không khả dụng ở trình độ này."));
+              var role = "DEFAULT".equals(input.roleCode()) ? row : db.find("""
+                  SELECT learner_role,ai_role,communication_goal,context_description,ai_instruction
+                  FROM scenario_role_variants WHERE scenario_id=? AND code=? FOR SHARE
+                  """, scenario, input.roleCode()).orElseThrow(() ->
+                  error(404, "ROLE_NOT_AVAILABLE", "Vai này không khả dụng trong tình huống đã chọn."));
               var snapshot =
                   new Snapshot(
                       row.text("title"),
-                      row.text("learner_role"),
-                      row.text("ai_role"),
-                      row.text("communication_goal"),
-                      row.text("context_description"),
-                      row.text("ai_instruction"));
-              String fingerprint = hash("start|" + scenario + "|" + input.level() + "|" + input.mode());
+                      role.text("learner_role"),
+                      role.text("ai_role"),
+                      role.text("communication_goal"),
+                      role.text("context_description"),
+                      role.text("ai_instruction"));
+              String fingerprint = hash("start|" + scenario + "|" + input.level() + "|" + input.mode()
+                  + "|" + input.roleCode());
               long id =
                   db.insert(
                       """
 INSERT INTO practice_sessions(user_id,scenario_id,client_request_id,request_fingerprint,selected_level,
-scenario_snapshot,mode,initial_mode,status,started_at,last_activity_at)
-VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+scenario_snapshot,mode,initial_mode,role_code,status,started_at,last_activity_at)
+VALUES (?,?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
 """,
                       owner.id(),
                       scenario,
@@ -132,7 +144,8 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
                       input.level(),
                       json.writeValueAsString(snapshot),
                       input.mode(),
-                      input.mode());
+                      input.mode(),
+                      input.roleCode());
               long request = addRequest(owner, id, "CHAT", "opening", fingerprint);
               addTurn(id, 0, "opening", fingerprint, "OPENING", request);
               return claim(owner, id, request, 0);
@@ -165,14 +178,14 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
               var prior =
                   db.find(
                       """
-                      SELECT t.ai_request_id,m.content FROM conversation_turns t
-                      LEFT JOIN messages m ON m.turn_id=t.id AND m.sender='LEARNER'
+                      SELECT t.ai_request_id,t.kind,t.request_fingerprint FROM conversation_turns t
                       WHERE t.session_id=? AND t.client_request_id=?
                       """,
                       id,
                       input.clientRequestId());
               if (prior.isPresent()) {
-                if (!text.equals(prior.get().text("content"))) throw reused();
+                if (!"LEARNER_TEXT".equals(prior.get().text("kind"))
+                    || !hash("text|" + text).equals(prior.get().text("request_fingerprint"))) throw reused();
                 return Work.replay(id, prior.get().number("ai_request_id"));
               }
               return acceptLearner(owner, id, session, input.clientRequestId(), text, null);
@@ -217,6 +230,7 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
         throw reused();
       if (prior.isPresent() && (!retry || !"FAILED".equals(prior.get().text("status"))))
         return Work.replay(id, prior.get().number("ai_request_id"));
+      requireVoiceMode(session);
       eligible(session, id);
       requireProvider();
       long operation;
@@ -257,9 +271,10 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
       return claimed;
     });
     if (work.attempt == 0) return getVoiceByOperation(owner, id, work.request);
+    VoiceDraft resultDraft = null;
     try {
       var call = callProvider(work, config.inputLimit);
-      return tx.execute(ignored -> {
+      resultDraft = tx.execute(ignored -> {
         lock(owner, id);
         expire(id);
         Row request = request(id, work.request);
@@ -284,8 +299,10 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
         }
         return voiceDraft(id, work.request);
       });
+      return resultDraft;
     } finally {
-      voiceStorage.release(key);
+      if (resultDraft == null || !"READY".equals(resultDraft.status())
+          || pronunciation.filter(service -> service.available()).isEmpty()) voiceStorage.release(key);
     }
   }
 
@@ -294,6 +311,23 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
       lock(owner, id);
       expire(id);
       return voiceDraft(id, audioOperation(id, audioId));
+    });
+  }
+
+  public Optional<VoiceDraft> recoverVoice(AccountPrincipal owner, long id) {
+    return tx.execute(ignored -> {
+      Row session = lock(owner, id);
+      if (!"ACTIVE".equals(session.text("status")) || !"VOICE".equals(session.text("mode")))
+        return Optional.empty();
+      expire(id);
+      return db.find("""
+          SELECT ai_request_id FROM audio_submissions WHERE session_id=? AND (
+            (status='TRANSCRIBING' AND expires_at>UTC_TIMESTAMP(6)) OR
+            (status='READY' AND transcript_expires_at>UTC_TIMESTAMP(6))
+          )
+          ORDER BY id DESC LIMIT 1
+          """, id).map(row -> voiceDraft(id, row.number("ai_request_id")))
+          .filter(draft -> Set.of("TRANSCRIBING", "READY").contains(draft.status()));
     });
   }
 
@@ -340,6 +374,11 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
   }
 
   public PracticeResponse confirmVoice(AccountPrincipal owner, long id, long audioId, String content) {
+    return confirmVoice(owner, id, audioId, content, false);
+  }
+
+  public PracticeResponse confirmVoice(AccountPrincipal owner, long id, long audioId, String content,
+      boolean assessPronunciation) {
     String text = content.strip();
     if (!validText(text, config.inputLimit))
       throw error(400, "INVALID_MESSAGE", "Bản chép lời trống, quá dài hoặc có ký tự không hợp lệ.");
@@ -359,12 +398,14 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
       }
       if (!"READY".equals(draft.status()))
         throw error(409, "AUDIO_NOT_READY", "Bản chép lời chưa sẵn sàng hoặc đã hết hạn.");
+      requireVoiceMode(session);
       Work claimed = acceptLearner(owner, id, session, "audio:" + audioId, text, audioId);
       db.update(
           """
           UPDATE audio_submissions SET status='CONFIRMED',draft_transcript=NULL,transcript_expires_at=NULL,
             confirmed_at=UTC_TIMESTAMP(6) WHERE id=?
           """, audioId);
+      if (assessPronunciation) pronunciation.ifPresent(service -> service.enqueue(owner.id(), id, audioId));
       return claimed;
     });
     return execute(owner, work);
@@ -489,7 +530,7 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
           if ("ACTIVE".equals(lock(owner, id).text("status"))) {
             expire(id);
             if (db.count(
-                    "SELECT COUNT(*) FROM ai_requests WHERE session_id=? AND status IN"
+                    "SELECT COUNT(*) FROM ai_requests WHERE session_id=? AND task_type<>'PRONUNCIATION' AND status IN"
                         + " ('PENDING','RUNNING')",
                     id)
                 > 0) throw busy();
@@ -498,7 +539,7 @@ VALUES (?,?,?,?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
 UPDATE practice_sessions SET status=?,ended_at=UTC_TIMESTAMP(6),last_activity_at=UTC_TIMESTAMP(6),
 version=version+1 WHERE id=?
 """,
-                turnCount(id) == 0 ? "ABANDONED" : "COMPLETED",
+                hasSuccessfulExchange(id) ? "COMPLETED" : "ABANDONED",
                 id);
             db.update(
                 """
@@ -508,6 +549,16 @@ version=version+1 WHERE id=?
           }
           return view(owner, id, null, null);
         });
+  }
+
+  private boolean hasSuccessfulExchange(long id) {
+    return db.find("""
+        SELECT t.id FROM conversation_turns t
+        JOIN messages learner ON learner.turn_id=t.id AND learner.sender='LEARNER'
+        JOIN messages assistant ON assistant.turn_id=t.id AND assistant.sender='ASSISTANT'
+        WHERE t.session_id=? AND t.turn_no>0 AND t.status='SUCCEEDED'
+        LIMIT 1
+        """, id).isPresent();
   }
 
   public PracticeResponse get(AccountPrincipal owner, long id) {
@@ -624,6 +675,117 @@ WHERE session_id=? AND task_type IN ('CHAT','HINT') AND status='UNKNOWN'
         });
   }
 
+  public ExplanationResponse getExplanation(AccountPrincipal owner, long id, long message) {
+    return tx.execute(ignored -> {
+      lock(owner, id);
+      explanationSource(id, message);
+      expire(id);
+      return explanationView(id, message);
+    });
+  }
+
+  public ExplanationResponse explain(AccountPrincipal owner, long id, long message, ExplanationRequest input) {
+    Work work = reserve(() -> {
+      lockAccount(owner);
+      Row session = lock(owner, id);
+      String source = explanationSource(id, message);
+      if (db.count("""
+          SELECT COUNT(*) FROM ai_requests r JOIN assistant_explanations e ON e.ai_request_id=r.id
+          WHERE r.session_id=? AND r.task_type='EXPLAIN' AND r.operation_key=? AND e.message_id<>?
+          """, id, id + ":explain:" + input.clientRequestId(), message) > 0)
+        throw reused();
+      expire(id);
+      var existing = db.find(
+          "SELECT ai_request_id FROM assistant_explanations WHERE session_id=? AND message_id=?", id, message);
+      if (existing.isPresent()) {
+        long operation = existing.get().number("ai_request_id");
+        var view = explanationView(id, message);
+        if (!input.retry() || Set.of("RUNNING", "SUCCEEDED").contains(view.status()))
+          return Work.replay(id, operation);
+        requireLatestAssistant(session, id, message);
+        if (!view.retryable())
+          throw error(409, "RETRY_UNAVAILABLE", "Không thể thử lại phần giải thích.");
+        if ("UNKNOWN".equals(view.status()) && !input.acknowledgeUnknown())
+          throw error(409, "UNKNOWN_ACK_REQUIRED", "Hãy xác nhận muốn gọi lại Gemini.");
+        if (db.count("SELECT COUNT(*) FROM ai_requests WHERE id=? AND retry_not_before>UTC_TIMESTAMP(6)",
+            operation) > 0) throw error(429, "RETRY_TOO_EARLY", "Hãy đợi trước khi thử lại.");
+        idle(id, operation);
+        requireProvider();
+        return claim(owner, id, operation, (int) request(id, operation).number("attempt_count"),
+            ExplanationAnalysis.prompt(session.text("selected_level"), source));
+      }
+      requireLatestAssistant(session, id, message);
+      if (input.retry()) throw error(409, "EXPLANATION_NOT_STARTED", "Chưa có yêu cầu giải thích để thử lại.");
+      idle(id, 0);
+      requireProvider();
+      long operation = addRequest(owner, id, "EXPLAIN", "explain:" + input.clientRequestId(),
+          hash("explain|" + message));
+      db.update("INSERT INTO assistant_explanations(session_id,message_id,ai_request_id) VALUES (?,?,?)",
+          id, message, operation);
+      return claim(owner, id, operation, 0, ExplanationAnalysis.prompt(session.text("selected_level"), source));
+    });
+    if (work.attempt == 0) return getExplanation(owner, id, message);
+    var call = callProvider(work, ExplanationAnalysis.MAX_JSON_CHARS);
+    return tx.execute(ignored -> {
+      lock(owner, id);
+      expire(id);
+      Row request = request(id, work.request);
+      if ("RUNNING".equals(request.text("status")) && request.number("attempt_count") == work.attempt) {
+        Outcome outcome = call.outcome;
+        if (outcome.success()) {
+          try {
+            var validated = ExplanationAnalysis.validate(outcome.text(), explanationSource(id, message));
+            db.update("UPDATE assistant_explanations SET simple_english=?,meaning_vi=? WHERE ai_request_id=?",
+                validated.simpleEnglish(), validated.meaningVi(), work.request);
+          } catch (IllegalArgumentException invalid) {
+            outcome = new Outcome(null, outcome.model(), outcome.providerId(), outcome.inputTokens(),
+                outcome.outputTokens(), outcome.cacheUsed(), "EXPLANATION_INVALID", false, true, 0);
+          }
+        }
+        recordOutcome(work, outcome, call.latency);
+        if (outcome.unknown()) releaseUncertainExplanation(work.request);
+        touch(id);
+      }
+      return explanationView(id, message);
+    });
+  }
+
+  private void releaseUncertainExplanation(long operation) {
+    // Preserve the UNKNOWN attempt for explicit retry without blocking the conversation.
+    db.update("UPDATE ai_requests SET status='FAILED',retryable=TRUE WHERE id=?", operation);
+  }
+
+  private String explanationSource(long id, long message) {
+    return db.find("SELECT content FROM messages WHERE session_id=? AND id=? AND sender='ASSISTANT'",
+        id, message).orElseThrow(() -> error(404, "ASSISTANT_MESSAGE_NOT_FOUND", "Không tìm thấy câu AI."))
+        .text("content");
+  }
+
+  private void requireLatestAssistant(Row session, long id, long message) {
+    active(session);
+    long latest = db.find("""
+        SELECT m.id FROM messages m JOIN conversation_turns t ON t.id=m.turn_id
+        WHERE m.session_id=? AND m.sender='ASSISTANT' ORDER BY t.turn_no DESC LIMIT 1
+        """, id).orElseThrow().number("id");
+    if (latest != message) throw error(409, "STALE_ASSISTANT_MESSAGE", "Hãy chọn câu AI mới nhất.");
+  }
+
+  private ExplanationResponse explanationView(long id, long message) {
+    return db.find("""
+        SELECT e.*,r.status,r.error_code,r.retryable,r.attempt_count,
+          COALESCE(a.status='UNKNOWN',FALSE) AS unknown_attempt,
+          DATE_FORMAT(r.retry_not_before,'%Y-%m-%dT%H:%i:%sZ') AS retry_iso
+        FROM assistant_explanations e JOIN ai_requests r ON r.id=e.ai_request_id
+        LEFT JOIN ai_attempts a ON a.ai_request_id=r.id AND a.attempt_no=r.attempt_count
+        WHERE e.session_id=? AND e.message_id=?
+        """, id, message).map(row -> new ExplanationResponse(Long.toString(message),
+            row.flag("unknown_attempt") ? "UNKNOWN" : row.text("status"), row.text("error_code"),
+            row.flag("retryable") && row.number("attempt_count") < config.maxAttempts, row.text("retry_iso"),
+            row.text("simple_english"), row.text("meaning_vi")))
+        .orElseGet(() -> new ExplanationResponse(Long.toString(message), "NOT_STARTED", null, false,
+            null, null, null));
+  }
+
   // Keep the MySQL lock through the reservation commit, but release it before calling Gemini.
   private synchronized Work reserve(Supplier<Work> work) {
     String lockName = "CONCAT('practice:',LEFT(SHA2(DATABASE(),256),48))";
@@ -653,23 +815,24 @@ WHERE session_id=? AND task_type IN ('CHAT','HINT') AND status='UNKNOWN'
   }
 
   private Work claim(AccountPrincipal owner, long id, long operation, int previous, Prompt supplied) {
+    lockAccount(owner);
     if (db.count(
-                "SELECT COUNT(*) FROM ai_attempts WHERE started_at>=UTC_TIMESTAMP(6)-INTERVAL 60"
+                "SELECT COUNT(*) FROM ai_attempts WHERE provider='GEMINI' AND started_at>=UTC_TIMESTAMP(6)-INTERVAL 60"
                     + " SECOND")
             >= config.globalRpm
         || db.count(
                 """
                 SELECT COUNT(*) FROM ai_attempts a JOIN ai_requests r ON r.id=a.ai_request_id
-                WHERE r.user_id=? AND a.started_at>=UTC_TIMESTAMP(6)-INTERVAL 60 SECOND
+                WHERE r.user_id=? AND a.provider='GEMINI' AND a.started_at>=UTC_TIMESTAMP(6)-INTERVAL 60 SECOND
                 """,
                 owner.id())
             >= config.userRpm
         || db.count(
-                "SELECT COUNT(*) FROM ai_requests WHERE status='RUNNING' AND"
+                "SELECT COUNT(*) FROM ai_requests WHERE status='RUNNING' AND task_type<>'PRONUNCIATION' AND"
                     + " processing_expires_at>UTC_TIMESTAMP(6)")
             >= config.globalConcurrent
         || config.totalAttemptLimit > 0
-            && db.count("SELECT COUNT(*) FROM ai_attempts") >= config.totalAttemptLimit)
+            && db.count("SELECT COUNT(*) FROM ai_attempts WHERE provider='GEMINI'") >= config.totalAttemptLimit)
       throw error(429, "AI_QUOTA", "Đã tới hạn mức AI. Hãy thử lại sau.");
     Prompt prompt = supplied == null ? buildPrompt(id, operation) : supplied;
     int attempt = previous + 1;
@@ -846,7 +1009,9 @@ Return plain English text only.
                 hint
                     ? "Act as a coach and offer one short sentence starter the learner can adapt."
                     : opening
-                        ? "Open in the partner role with one relevant question."
+                        ? "DEFAULT".equals(session.text("role_code"))
+                            ? "Open in the partner role with one relevant question."
+                            : "Open naturally in the partner role. Follow the scenario guidance for who leads."
                         : "Respond in the partner role to the latest learner sentence. Continue"
                             + " naturally. Do not grade or correct now.");
     List<Text> history = new ArrayList<>();
@@ -860,10 +1025,16 @@ Return plain English text only.
               opening
                   ? "Please start the role-play."
                   : "Give me a short hint for my next response."));
-    if (instruction.length() + history.stream().mapToInt(line -> line.content().length()).sum()
-        > config.contextLimit)
+    int remaining = config.contextLimit - instruction.length();
+    int start = history.size();
+    while (start > 0 && history.get(start - 1).content().length() <= remaining) {
+      start--;
+      remaining -= history.get(start).content().length();
+    }
+    if (start == history.size())
       throw error(422, "CONTEXT_LIMIT", "Ngữ cảnh đã vượt giới hạn của buổi luyện.");
-    return new Prompt(instruction, List.copyOf(history), config.maxOutputTokens);
+    while (start > 0 && start < history.size() - 1 && "model".equals(history.get(start).role())) start++;
+    return new Prompt(instruction, List.copyOf(history.subList(start, history.size())), config.maxOutputTokens);
   }
 
   private void expire(long id) {
@@ -883,13 +1054,14 @@ WHERE ai_request_id=? AND attempt_no=? AND status='RUNNING'
 """,
         operation,
         expired.get().number("attempt_count"));
-    if ("TRANSCRIPTION".equals(expired.get().text("task_type"))) {
+    String task = expired.get().text("task_type");
+    if (Set.of("TRANSCRIPTION", "EXPLAIN").contains(task)) {
       db.update(
           """
           UPDATE ai_requests SET status='FAILED',retryable=TRUE,error_code='LEASE_EXPIRED',
             finished_at=UTC_TIMESTAMP(6),processing_expires_at=NULL WHERE id=?
           """, operation);
-      failVoice(operation);
+      if ("TRANSCRIPTION".equals(task)) failVoice(operation);
       touch(id);
       return;
     }
@@ -930,10 +1102,10 @@ processing_expires_at=NULL WHERE id=?
         db.find(
             """
 SELECT r.*, DATE_FORMAT(r.retry_not_before,'%Y-%m-%dT%H:%i:%sZ') AS retry_iso
-FROM ai_requests r WHERE r.session_id=? AND r.task_type<>'TRANSCRIPTION' AND (r.busy_session_id IS NOT NULL OR r.id=?
+FROM ai_requests r WHERE r.session_id=? AND r.task_type NOT IN ('TRANSCRIPTION','EXPLAIN','PRONUNCIATION') AND (r.busy_session_id IS NOT NULL OR r.id=?
 OR r.status='FAILED' AND COALESCE(r.error_code,'')<>'SKIPPED' AND (
   r.id=(SELECT t.ai_request_id FROM conversation_turns t WHERE t.session_id=r.session_id ORDER BY t.turn_no DESC LIMIT 1)
-  OR r.id=(SELECT MAX(latest.id) FROM ai_requests latest WHERE latest.session_id=r.session_id AND latest.task_type<>'TRANSCRIPTION')))
+  OR r.id=(SELECT MAX(latest.id) FROM ai_requests latest WHERE latest.session_id=r.session_id AND latest.task_type NOT IN ('TRANSCRIPTION','EXPLAIN','PRONUNCIATION'))))
 ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
   WHEN r.task_type='CHAT' AND r.status='FAILED' THEN 1 WHEN r.id=? THEN 2 ELSE 3 END,r.id DESC LIMIT 1
 """,
@@ -957,6 +1129,7 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
         session.text("id"),
         session.text("status"),
         session.text("mode"),
+        session.text("role_code"),
         session.text("selected_level"),
         session.text("version"),
         snapshot.title,
@@ -966,7 +1139,8 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
         snapshot.context,
         turns.size() - 1,
         MAX_TURNS,
-        messages(id),
+        pronunciation.filter(service -> service.available()).isPresent(),
+        messages(id, pronunciation.map(service -> service.scores(id)).orElseGet(java.util.Map::of)),
         turns,
         operation,
         hint,
@@ -978,6 +1152,11 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
   }
 
   private List<MessageResponse> messages(long id) {
+    return messages(id, java.util.Map.of());
+  }
+
+  private List<MessageResponse> messages(long id,
+      java.util.Map<Long, vn.englishconversation.pronunciation.service.ConversationPronunciation.Score> scores) {
     return db
         .rows(
             """
@@ -995,7 +1174,7 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
                     (int) m.number("turn_no"),
                     m.text("sender"),
                     m.text("content"),
-                    m.text("created_iso")))
+                    m.text("created_iso"), scores.get(m.number("id"))))
         .toList();
   }
 
@@ -1004,6 +1183,11 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
         && text.length() <= limit
         && text.codePoints()
             .noneMatch(c -> Character.isISOControl(c) && c != 10 && c != 13 && c != 9);
+  }
+
+  private static void requireVoiceMode(Row session) {
+    if (!"VOICE".equals(session.text("mode")))
+      throw error(409, "VOICE_MODE_REQUIRED", "Buổi luyện đang dùng chế độ chat văn bản.");
   }
 
   private void eligible(Row session, long id) {
@@ -1016,13 +1200,14 @@ ORDER BY CASE WHEN r.busy_session_id IS NOT NULL THEN 0
 
   private void lockAccount(AccountPrincipal owner) {
     if (db.find(
-            "SELECT id FROM users WHERE id=? AND status='ACTIVE' AND security_version=? FOR UPDATE",
+            "SELECT id FROM users WHERE id=? AND status='ACTIVE' AND deletion_requested_at IS NULL AND security_version=? FOR UPDATE",
             owner.id(),
             owner.securityVersion())
         .isEmpty()) throw error(401, "SESSION_REVOKED", "Vui lòng đăng nhập lại.");
   }
 
   private Row lock(AccountPrincipal owner, long id) {
+    lockAccount(owner);
     return db.find(
             "SELECT * FROM practice_sessions WHERE id=? AND user_id=? FOR UPDATE", id, owner.id())
         .orElseThrow(PracticeService::missing);
@@ -1063,6 +1248,7 @@ VALUES (?,?,?,?,?,'PENDING',?,UTC_TIMESTAMP(6))
         fingerprint,
         switch (task) {
           case "FEEDBACK" -> FeedbackAnalysis.VERSION;
+          case "EXPLAIN" -> ExplanationAnalysis.VERSION;
           case "TRANSCRIPTION" -> "voice-transcription-v1";
           default -> "practice-text-v1";
         });
