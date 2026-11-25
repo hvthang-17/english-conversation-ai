@@ -31,7 +31,7 @@ foreach ($key in $settings.Keys) {
 }
 Push-Location $workspace
 try {
- & backend/mvnw.cmd -f backend/pom.xml verify "-DargLine=-Xms64m -Xmx384m"
+ & backend/mvnw.cmd -f backend/pom.xml verify "-DargLine=-Xms64m -Xmx384m -Dspring.test.context.cache.maxSize=1"
  if ($LASTEXITCODE -ne 0) { throw 'Phase 2 MySQL checks failed.' }
 } finally {
  Pop-Location

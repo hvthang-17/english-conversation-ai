@@ -2,7 +2,8 @@
 
 Thí nghiệm độc lập với runtime ứng dụng. Không triển khai AUTH-01 hoặc gọi Gemini thật trong bước này.
 
-- audio/: trang kiểm tra codec/micro local, không upload, người dùng tự cấp quyền và nghe lại.
+- audio/: trang kiểm tra codec/micro local, chuyển thử sang PCM WAV mono 16 kHz và phát TTS bằng giọng local. Người dùng tự cấp quyền micro và nghe lại. Trang không upload.
+- offline_checks.py: chạy bằng Python chuẩn để kiểm tra fixture Gemini/Azure, mẫu A2/B1 và biên TTL. Kết quả là kiểm tra hợp đồng offline.
 - gemini/: Maven Java 21 probe REST với unit tests/dry-run, wrapper hiện chặn Live.
 - fixtures/: 32 tình huống tổng hợp cho đánh giá sau, không phải kết quả đã chạy hoặc gold set chuyên gia.
 

@@ -30,8 +30,17 @@
       <audio id="playback" controls></audio>
       <p><label><input id="heard" type="checkbox" /> Tôi đã nghe lại và xác nhận bản ghi có lời nói nghe rõ.</label></p>
     </section>
+    <section aria-labelledby="tts-title">
+      <h2 id="tts-title">3. Thử đọc câu bằng giọng trên thiết bị</h2>
+      <p>Thử hai giọng tiếng Anh local nếu có, đổi tốc độ và dừng giữa câu.</p>
+      <label>Giọng <select id="voice"></select></label>
+      <label>Tốc độ <select id="rate"><option value="1">Bình thường</option><option value="0.75">Chậm</option></select></label>
+      <button id="speak" type="button">Đọc thử câu mẫu</button>
+      <button id="cancel-speech" type="button">Dừng đọc</button>
+      <p id="tts-status" role="status"></p>
+    </section>
     <section aria-labelledby="report-title">
-      <h2 id="report-title">3. Kết quả metadata</h2>
+      <h2 id="report-title">4. Kết quả metadata</h2>
       <p>Có thể sao chép JSON bên dưới để cập nhật báo cáo. Không chứa file audio, tên thiết bị hoặc nội dung lời nói.</p>
       <pre id="report" tabindex="0"></pre>
     </section>

@@ -11,6 +11,7 @@ const report = {
   synthetic: { status: 'NOT_RUN', source: 'SYNTHETIC_TONE_NOT_MICROPHONE' },
   microphone: { status: 'NOT_RUN', source: 'PHYSICAL_MICROPHONE', user_heard_clear_speech: false },
   uploaded: false,
+  tts: { local_english_voice_count: 0, attempts: [] },
 }
 const ui = Object.fromEntries(['synthetic', 'record', 'stop', 'clear', 'status', 'playback', 'heard', 'report'].map((id) => [id, document.getElementById(id)]))
 let active = null
@@ -20,6 +21,29 @@ let generation = 0
 function render() {
   report.recorded_at = new Date().toISOString()
   ui.report.textContent = JSON.stringify(report, null, 2)
+}
+
+async function encodeProviderWave(decoded) {
+  const rate = 16000
+  const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate)
+  const source = offline.createBufferSource()
+  source.buffer = decoded
+  source.connect(offline.destination)
+  source.start()
+  const samples = (await offline.startRendering()).getChannelData(0)
+  const view = new DataView(new ArrayBuffer(44 + samples.length * 2))
+  const tag = (offset, value) => [...value].forEach((character, index) => view.setUint8(offset + index, character.charCodeAt(0)))
+  tag(0, 'RIFF'); view.setUint32(4, view.byteLength - 8, true)
+  tag(8, 'WAVE'); tag(12, 'fmt '); view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true); view.setUint16(22, 1, true)
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true)
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true)
+  tag(36, 'data'); view.setUint32(40, samples.length * 2, true)
+  samples.forEach((sample, index) => {
+    const bounded = Math.min(1, Math.max(-1, sample))
+    view.setInt16(44 + index * 2, Math.round(bounded * (bounded < 0 ? 32768 : 32767)), true)
+  })
+  return view.buffer
 }
 
 async function capture(stream, milliseconds, source, onReady) {
@@ -51,9 +75,12 @@ async function capture(stream, milliseconds, source, onReady) {
         let energy = 0
         const channel = decoded.getChannelData(0)
         for (const sample of channel) energy += sample * sample
+        const wave = await encodeProviderWave(decoded)
+        const verifiedWave = await context.decodeAudioData(wave.slice(0))
         resolve({ blob, metadata: { status: 'CAPTURED_AND_DECODED', source, actual_mime: recorder.mimeType,
           bytes: blob.size, elapsed_ms: Math.round(performance.now() - started), duration_seconds: decoded.duration,
-          sample_rate: decoded.sampleRate, rms: Math.sqrt(energy / channel.length) } })
+          sample_rate: decoded.sampleRate, rms: Math.sqrt(energy / channel.length),
+          provider_wav: { bytes: wave.byteLength, format: 'PCM16_MONO_16000', decoded_seconds: verifiedWave.duration } } })
       } catch (error) { reject(error) }
       finally { if (context) await context.close() }
     })
@@ -144,6 +171,61 @@ function clearRecording() {
   render()
 }
 ui.clear.addEventListener('click', clearRecording)
-window.addEventListener('pagehide', clearRecording)
+const speech = window.speechSynthesis
+const voiceSelect = document.getElementById('voice')
+const rateSelect = document.getElementById('rate')
+const speakButton = document.getElementById('speak')
+const ttsStatus = document.getElementById('tts-status')
+let voices = []
+let currentSpeech = null
+
+function refreshVoices() {
+  const previous = voiceSelect.value
+  voices = speech?.getVoices().filter(voice => voice.localService && /^en(?:-|$)/i.test(voice.lang)) ?? []
+  voiceSelect.replaceChildren(...voices.map(voice => new Option(voice.name, voice.voiceURI)))
+  if (voices.some(voice => voice.voiceURI === previous)) voiceSelect.value = previous
+  speakButton.disabled = voices.length === 0
+  report.tts.local_english_voice_count = voices.length
+  if (!currentSpeech) ttsStatus.textContent = voices.length ? 'Chọn giọng để thử.' : 'Chưa có giọng tiếng Anh local.'
+  render()
+}
+
+function finishSpeech(status) {
+  if (!currentSpeech) return
+  report.tts.attempts = [...report.tts.attempts, { ...currentSpeech.metadata, status }].slice(-10)
+  currentSpeech = null
+  ttsStatus.textContent = { PLAYED: 'Đã phát hết câu.', FAILED: 'Không phát được câu.', CANCELLED: 'Đã dừng đọc.' }[status]
+  render()
+}
+
+function cancelSpeech() {
+  finishSpeech('CANCELLED')
+  speech?.cancel()
+}
+
+speakButton.addEventListener('click', () => {
+  const voice = voices.find(candidate => candidate.voiceURI === voiceSelect.value)
+  if (!voice) return
+  cancelSpeech()
+  const sample = new SpeechSynthesisUtterance('I would like a glass of water, please.')
+  const started = performance.now()
+  sample.voice = voice
+  sample.lang = voice.lang
+  sample.rate = Number(rateSelect.value)
+  const metadata = { locale: voice.lang, voice_index: voices.indexOf(voice), rate: sample.rate, start_latency_ms: null }
+  currentSpeech = { sample, metadata }
+  sample.onstart = () => {
+    if (currentSpeech?.sample !== sample) return
+    metadata.start_latency_ms = Math.round(performance.now() - started)
+    ttsStatus.textContent = 'Đang phát câu mẫu…'
+  }
+  sample.onend = () => { if (currentSpeech?.sample === sample) finishSpeech('PLAYED') }
+  sample.onerror = () => { if (currentSpeech?.sample === sample) finishSpeech('FAILED') }
+  try { speech.speak(sample) }
+  catch { finishSpeech('FAILED') }
+})
+document.getElementById('cancel-speech').addEventListener('click', cancelSpeech)
+speech?.addEventListener('voiceschanged', refreshVoices)
+window.addEventListener('pagehide', () => { clearRecording(); cancelSpeech() })
 window.phase0Probe = { runSynthetic, report }
-render()
+refreshVoices()
