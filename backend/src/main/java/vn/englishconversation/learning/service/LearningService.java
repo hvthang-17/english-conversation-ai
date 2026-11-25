@@ -9,16 +9,26 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.conversation.repository.PracticeStore.Row;
+import vn.englishconversation.common.repository.JdbcStore.Row;
 import vn.englishconversation.learning.repository.LearningStore;
+import vn.englishconversation.lesson.repository.LessonCatalogRepository;
 
 @Service
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class LearningService {
   private final LearningStore store;
+  private final LessonCatalogRepository lessons;
 
-  public LearningService(LearningStore store) {
+  private final java.util.Optional<vn.englishconversation.listening.service.ListeningAttempts> listening;
+  private final java.util.Optional<vn.englishconversation.pronunciation.service.PronunciationService> pronunciation;
+
+  public LearningService(LearningStore store, LessonCatalogRepository lessons,
+      java.util.Optional<vn.englishconversation.listening.service.ListeningAttempts> listening,
+      java.util.Optional<vn.englishconversation.pronunciation.service.PronunciationService> pronunciation) {
+    this.listening = listening;
+    this.pronunciation = pronunciation;
     this.store = store;
+    this.lessons = lessons;
   }
 
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -74,6 +84,9 @@ public class LearningService {
     account(owner);
     for (long id : store.lockAllSessions(owner.id())) store.deletePractice(owner.id(), id);
     store.deleteCards(owner.id());
+    lessons.removeAll(owner.id());
+    listening.ifPresent(service -> service.clear(owner));
+    pronunciation.ifPresent(service -> service.clearLearningData(owner.id()));
   }
 
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)

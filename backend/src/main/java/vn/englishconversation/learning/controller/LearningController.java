@@ -12,7 +12,7 @@ import vn.englishconversation.learning.service.LearningService;
 
 @RestController
 @RequestMapping("/api/v1/learning")
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class LearningController {
   private final LearningService learning;
 

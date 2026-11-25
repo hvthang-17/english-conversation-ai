@@ -6,25 +6,25 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import vn.englishconversation.conversation.repository.PracticeStore;
-import vn.englishconversation.conversation.repository.PracticeStore.Row;
+import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("!bootstrap")
+@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
 public class LearningStore {
   private static final String CARD_FIELDS =
       """
 SELECT c.*, DATE_FORMAT(last_reviewed_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS reviewed_iso FROM review_items c
 """;
-  private final PracticeStore db;
+  private final JdbcStore db;
 
-  public LearningStore(PracticeStore db) {
+  public LearningStore(JdbcStore db) {
     this.db = db;
   }
 
   public boolean lockAccount(long user, long version) {
     return db.find(
-            "SELECT id FROM users WHERE id=? AND status='ACTIVE' AND security_version=? FOR UPDATE",
+            "SELECT id FROM users WHERE id=? AND status='ACTIVE' AND deletion_requested_at IS NULL AND security_version=? FOR UPDATE",
             user,
             version)
         .isPresent();
@@ -183,6 +183,12 @@ DELETE s FROM feedback_suggestions s JOIN session_feedback f ON f.id=s.feedback_
         id);
     db.update("DELETE FROM session_feedback WHERE session_id=?", id);
     db.update("DELETE FROM messages WHERE session_id=?", id);
+    db.update("""
+        UPDATE pronunciation_attempts p JOIN ai_requests r ON r.id=p.ai_request_id
+        SET p.status='FAILED',p.error_code='PRACTICE_DELETED',p.recognized_text=NULL,
+          p.overall_score=NULL,p.accuracy=NULL,p.fluency=NULL,p.detail_json=NULL,p.scored_at=NULL
+        WHERE r.session_id=? AND r.task_type='PRONUNCIATION'
+        """, id);
     db.update(
         """
         UPDATE audio_submissions SET status='DELETION_PENDING',draft_transcript=NULL,
