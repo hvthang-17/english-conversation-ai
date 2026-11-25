@@ -35,7 +35,7 @@ public class CatalogService {
   }
 
   public List<TopicResponse> topics(String level) {
-    return catalog.topics(level(level));
+    return level == null ? catalog.activeTopics() : catalog.topics(level(level));
   }
 
   public ScenarioPage list(String level, String topicId, int page, int size) {

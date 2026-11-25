@@ -8,7 +8,7 @@ import vn.englishconversation.scenario.service.CatalogService;
 
 @RestController
 @RequestMapping("/api/v1")
-@Profile("!bootstrap")
+@Profile("!bootstrap & !g1")
 public class CatalogController {
   private final CatalogService catalog;
 

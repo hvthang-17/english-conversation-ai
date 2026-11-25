@@ -5,6 +5,8 @@ import java.util.*;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.englishconversation.auth.security.AccountPrincipal;
+import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.profile.dto.*;
 import vn.englishconversation.profile.entity.LearnerProfile;
@@ -51,11 +53,13 @@ public class ProfileService {
   }
 
   @Transactional
-  public ProfileResponse update(long userId, UpdateProfileRequest request) {
+  public ProfileResponse update(AccountPrincipal principal, UpdateProfileRequest request) {
+    long userId = principal.id();
     // Serialize full replacements for one owner; never accept a user id from the body.
     users
         .lockById(userId)
-        .orElseThrow(() -> new ApiException(401, "AUTHENTICATION_REQUIRED", "Vui lòng đăng nhập."));
+        .filter(owner -> AccountService.valid(owner, principal))
+        .orElseThrow(() -> new ApiException(401, "SESSION_REVOKED", "Vui lòng đăng nhập lại."));
     var ids = request.topicIds().stream().map(CatalogService::id).toList();
     if (new HashSet<>(ids).size() != ids.size())
       throw new ApiException(400, "DUPLICATE_TOPICS", "Mỗi chủ đề chỉ được chọn một lần.");
@@ -80,6 +84,6 @@ public class ProfileService {
         p.selectedLevel,
         p.learningGoal,
         p.dailyGoalMinutes,
-        catalog.interests(p.userId));
+        catalog.interests(p.userId), p.avatarStorageKey==null?null:"/api/v1/profile/me/avatar");
   }
 }

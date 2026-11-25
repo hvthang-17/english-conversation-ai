@@ -174,6 +174,12 @@ class ProfileCatalogMysqlTest {
         assertFalse(internal.isBlank());
         assertFalse(detail.body().contains(internal));
         assertFalse(data.has("aiInstruction"));
+        var roles = data.get("roles");
+        assertEquals(2, roles.size());
+        assertEquals("DEFAULT", roles.get(0).get("code").asString());
+        assertEquals("REVERSE", roles.get(1).get("code").asString());
+        assertEquals(data.get("aiRole"), roles.get(1).get("learnerRole"));
+        assertFalse(roles.get(1).has("aiInstruction"));
       }
     }
     assertEquals(6, json.readTree(b.get("topics").body()).size());
@@ -320,11 +326,16 @@ class ProfileCatalogMysqlTest {
         """);
     var flyway = org.flywaydb.core.Flyway.configure().dataSource(ds).load();
     flyway.migrate();
+    assertNull(check.queryForObject("SELECT deletion_requested_at FROM users WHERE email='upgrade@example.test'",java.sql.Timestamp.class));
+
     assertEquals("An existing message.", check.queryForObject(
         "SELECT content FROM messages WHERE id=1 AND input_type='TEXT' AND audio_submission_id IS NULL",
         String.class));
     assertEquals("TEXT/TEXT", check.queryForObject(
         "SELECT CONCAT(mode,'/',initial_mode) FROM practice_sessions WHERE id=1", String.class));
+    assertEquals("DEFAULT", check.queryForObject(
+        "SELECT role_code FROM practice_sessions WHERE id=1", String.class));
+    assertEquals(8, check.queryForObject("SELECT count(*) FROM scenario_role_variants", Integer.class));
     assertEquals(
         hash,
         check.queryForObject(

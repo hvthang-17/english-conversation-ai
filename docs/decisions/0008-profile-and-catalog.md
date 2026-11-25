@@ -13,4 +13,4 @@
 - Chọn bài ở P2 chỉ xác nhận tạm trên UI. P3 phải kiểm tra lại trạng thái và snapshot level/vai/bối cảnh/mục tiêu lúc mở buổi. Không thay schema hoặc dữ liệu lịch sử ở P2; chưa có tính năng lịch sử để chứng minh snapshot bằng regression test.
 
 ## Giới hạn và bằng chứng
-[Rà soát bộ bài](../product/starter-catalog-review.md), [API](../api/profile-catalog.md), [kết quả P2](../development/phase2/README.md). Không có live AI, chuyên gia tiếng Anh hoặc thử trên điện thoại thật trong giai đoạn này; chất lượng hội thoại và snapshot được kiểm chứng ở các bước sau. Hai cửa sổ chỉnh hồ sơ dùng last-write-wins có khóa, chưa có optimistic edit conflict UI.
+[Phiếu rà nội dung catalog hiện hành](../development/acceptance/g2-content-review.md), [API](../api/profile-catalog.md), [Kế hoạch G2](../development/full-system-implementation-plan.md#g2--quản-lý-và-khám-phá-nội-dung). Không có live AI, chuyên gia tiếng Anh hoặc thử trên điện thoại thật trong giai đoạn này; chất lượng hội thoại và snapshot được kiểm chứng ở các bước sau. Hai cửa sổ chỉnh hồ sơ dùng last-write-wins có khóa, chưa có optimistic edit conflict UI.

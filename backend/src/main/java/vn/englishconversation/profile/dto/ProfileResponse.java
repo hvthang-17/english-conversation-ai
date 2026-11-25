@@ -8,4 +8,4 @@ public record ProfileResponse(
     String selectedLevel,
     String learningGoal,
     Short dailyGoalMinutes,
-    List<String> topicIds) {}
+    List<String> topicIds, String avatarUrl) {}

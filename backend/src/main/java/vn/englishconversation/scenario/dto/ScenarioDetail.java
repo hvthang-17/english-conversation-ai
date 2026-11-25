@@ -13,4 +13,5 @@ public record ScenarioDetail(
     String aiRole,
     String communicationGoal,
     String contextDescription,
-    List<String> levels) {}
+    List<String> levels,
+    List<ScenarioRole> roles) {}

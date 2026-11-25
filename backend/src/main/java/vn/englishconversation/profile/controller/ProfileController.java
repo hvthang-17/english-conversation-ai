@@ -27,6 +27,6 @@ public class ProfileController {
   public ProfileResponse update(
       @AuthenticationPrincipal AccountPrincipal p,
       @Valid @RequestBody UpdateProfileRequest request) {
-    return profiles.update(p.id(), request);
+    return profiles.update(p, request);
   }
 }

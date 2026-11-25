@@ -18,6 +18,7 @@ public class LearnerProfile {
   public String learningGoal;
 
   public Short dailyGoalMinutes;
+  public String avatarStorageKey;
 
   @Column(nullable = false)
   public Instant createdAt;

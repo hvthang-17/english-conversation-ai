@@ -44,6 +44,14 @@ public class CatalogRepository {
                 r.getString("description")));
   }
 
+  public List<TopicResponse> activeTopics() {
+    return jdbc.query(
+        "SELECT id,code,name,description FROM topics WHERE is_active=TRUE ORDER BY sort_order,id",
+        Map.of(),
+        (row, index) -> new TopicResponse(
+            row.getString("id"), row.getString("code"), row.getString("name"), row.getString("description")));
+  }
+
   public List<String> interests(long userId) {
     return jdbc.query(
         "SELECT i.topic_id FROM user_topic_interests i JOIN topics t ON t.id=i.topic_id WHERE"
@@ -151,9 +159,16 @@ public class CatalogRepository {
                     r.getString("ai_role"),
                     r.getString("communication_goal"),
                     r.getString("context_description"),
-                    List.of()));
+                    List.of(), List.of()));
     if (rows.isEmpty()) return Optional.empty();
     var r = rows.getFirst();
+    List<ScenarioRole> roles = new ArrayList<>();
+    roles.add(new ScenarioRole("DEFAULT", r.learnerRole(), r.aiRole(), r.communicationGoal(), r.contextDescription()));
+    roles.addAll(jdbc.query("""
+        SELECT code,learner_role,ai_role,communication_goal,context_description
+        FROM scenario_role_variants WHERE scenario_id=:id ORDER BY code
+        """, p, (item, n) -> new ScenarioRole(item.getString("code"), item.getString("learner_role"),
+        item.getString("ai_role"), item.getString("communication_goal"), item.getString("context_description"))));
     return Optional.of(
         new ScenarioDetail(
             r.id(),
@@ -166,6 +181,6 @@ public class CatalogRepository {
             r.aiRole(),
             r.communicationGoal(),
             r.contextDescription(),
-            levels(id)));
+            levels(id), List.copyOf(roles)));
   }
 }
