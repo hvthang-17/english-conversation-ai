@@ -32,4 +32,12 @@ public class AdminAudit {
         VALUES (?,?,?,?,UTC_TIMESTAMP(6))
         """, actor, targetType + (created ? "_CREATED" : "_UPDATED"), targetType, target);
   }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public void catalogDeleted(long actor, String targetType, long target) {
+    db.update("""
+        INSERT INTO admin_audit_logs(actor_user_id,action,target_type,target_id,safe_metadata,created_at)
+        VALUES (?,?,?,?,JSON_OBJECT('operation','DELETE'),UTC_TIMESTAMP(6))
+        """, actor, targetType + "_UPDATED", targetType, target);
+  }
 }

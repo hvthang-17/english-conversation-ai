@@ -13,7 +13,7 @@ import vn.englishconversation.user.dto.UserResponse;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
-@Profile("!bootstrap")
+@Profile("!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5")
 public class AccountAdminController {
   private final AccountService accounts;
   private final AdminService admin;

@@ -1,6 +1,7 @@
 package vn.englishconversation.admin.controller;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -12,7 +13,7 @@ import vn.englishconversation.auth.security.AccountPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/admin")
-@Profile("!bootstrap")
+@Profile("!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5")
 public class CatalogAdminController {
   private final AdminService admin;
 
@@ -46,6 +47,11 @@ public class CatalogAdminController {
     return admin.scenarios(topicId, page, size);
   }
 
+  @GetMapping("/topics/{topicId}/scenarios/{id}/roles")
+  public List<ScenarioVariant> scenarioRoles(@PathVariable long topicId, @PathVariable long id) {
+    return admin.scenarioVariants(topicId, id);
+  }
+
   @PostMapping("/topics/{topicId}/scenarios")
   @ResponseStatus(HttpStatus.CREATED)
   public Scenario createScenario(@AuthenticationPrincipal AccountPrincipal actor,
@@ -57,5 +63,26 @@ public class CatalogAdminController {
   public Scenario updateScenario(@AuthenticationPrincipal AccountPrincipal actor,
       @PathVariable long topicId, @PathVariable long id, @Valid @RequestBody ScenarioInput input) {
     return admin.saveScenario(actor, topicId, id, input);
+  }
+
+  @DeleteMapping("/topics/{topicId}/scenarios/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteScenario(@AuthenticationPrincipal AccountPrincipal actor,
+      @PathVariable long topicId, @PathVariable long id) {
+    admin.removeScenario(actor, topicId, id, false);
+  }
+
+  @PostMapping("/topics/{topicId}/scenarios/{id}/archive")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void archiveScenario(@AuthenticationPrincipal AccountPrincipal actor,
+      @PathVariable long topicId, @PathVariable long id) {
+    admin.removeScenario(actor, topicId, id, true);
+  }
+
+  @PostMapping("/topics/{topicId}/scenarios/{id}/restore")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void restoreScenario(@AuthenticationPrincipal AccountPrincipal actor,
+      @PathVariable long topicId, @PathVariable long id) {
+    admin.restoreScenario(actor, topicId, id);
   }
 }

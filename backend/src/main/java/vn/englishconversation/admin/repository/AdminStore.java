@@ -58,7 +58,7 @@ public class AdminStore {
         input.active(), input.sortOrder()};
     if (id == null)
       return insert("INSERT INTO topics SET " + fields + ",created_at=UTC_TIMESTAMP(6)", args);
-    db.update("UPDATE topics SET " + fields + " WHERE id=?", append(args, id));
+    db.update("UPDATE topics SET admin_draft=FALSE," + fields + " WHERE id=?", append(args, id));
     return id;
   }
 
@@ -97,11 +97,55 @@ public class AdminStore {
     } else {
       db.update("UPDATE scenarios SET " + fields + " WHERE topic_id=? AND id=?", append(args, topicId, id));
       key = id;
-      db.update("DELETE FROM scenario_levels WHERE scenario_id=?", key);
     }
-    for (String level : input.levels())
-      db.update("INSERT INTO scenario_levels(scenario_id,level) VALUES (?,?)", key, level);
+    var existing = db.queryForList("SELECT level FROM scenario_levels WHERE scenario_id=?", String.class, key);
+    for (String level : existing) {
+      if (!input.levels().contains(level)) {
+        if (count("SELECT COUNT(*) FROM lessons WHERE scenario_id=? AND level=?", key, level) != 0)
+          throw new vn.englishconversation.common.exception.ApiException(
+              409, "SCENARIO_LEVEL_IN_USE", "Cấp độ này còn được một bài học sử dụng.");
+        db.update("DELETE FROM scenario_levels WHERE scenario_id=? AND level=?", key, level);
+      }
+    }
+    for (String level : input.levels()) {
+      if (!existing.contains(level)) db.update("INSERT INTO scenario_levels(scenario_id,level) VALUES (?,?)", key, level);
+    }
     return key;
+  }
+
+  public void setScenarioStatus(long id, long actor, String status) {
+    db.update("UPDATE scenarios SET status=?,updated_by=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?", status, actor, id);
+  }
+
+  public void deleteScenario(long id) {
+    db.update("DELETE FROM scenarios WHERE id=?", id);
+  }
+
+  public List<ScenarioVariant> scenarioVariants(long id) {
+    return db.query("""
+        SELECT code,learner_role,ai_role,communication_goal,context_description,ai_instruction
+        FROM scenario_role_variants WHERE scenario_id=? ORDER BY code
+        """, (r, n) -> new ScenarioVariant(r.getString("code"), r.getString("learner_role"),
+        r.getString("ai_role"), r.getString("communication_goal"), r.getString("context_description"),
+        r.getString("ai_instruction")), id);
+  }
+
+  public void replaceScenarioVariants(long id, List<ScenarioVariant> previous, List<ScenarioVariant> next) {
+    var retained = next.stream().map(ScenarioVariant::code).collect(java.util.stream.Collectors.toSet());
+    for (var variant : previous) {
+      if (!retained.contains(variant.code()))
+        db.update("DELETE FROM scenario_role_variants WHERE scenario_id=? AND code=?", id, variant.code());
+    }
+    db.batchUpdate("""
+        INSERT INTO scenario_role_variants
+          (scenario_id,code,learner_role,ai_role,communication_goal,context_description,ai_instruction)
+        VALUES (?,?,?,?,?,?,?) AS incoming
+        ON DUPLICATE KEY UPDATE learner_role=incoming.learner_role,ai_role=incoming.ai_role,
+          communication_goal=incoming.communication_goal,context_description=incoming.context_description,
+          ai_instruction=incoming.ai_instruction
+        """, next.stream().map(variant -> new Object[] {id, variant.code(), variant.learnerRole().strip(),
+        variant.aiRole().strip(), variant.communicationGoal().strip(), variant.contextDescription().strip(),
+        variant.aiInstruction().strip()}).toList());
   }
 
   public AdminOverview overview() {
