@@ -1,0 +1,3 @@
+# Isolated probe only; not a Spring Boot or frontend dependency.
+# kokoro and model weights: Apache-2.0. Review transitive notices before deployment.
+kokoro==0.9.4
