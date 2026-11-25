@@ -1,0 +1,14 @@
+.admin-overview { display: grid; gap: 24px; }
+.admin-work-links { display: grid; }
+.admin-work-links > button { justify-content: flex-start; text-align: left; gap: 16px; padding: 20px 0; color: var(--text); border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
+.admin-work-links > button:first-child { padding-top: 4px; }
+.admin-work-links > button:last-child { border-bottom: 0; padding-bottom: 4px; }
+.admin-work-links > button > span { flex: 1; display: grid; gap: 4px; }
+.admin-work-links strong { font-size: 1rem; color: var(--primary); }
+.admin-work-links small { font-weight: 400; font-size: .875rem; color: var(--text-muted); }
+.admin-work-links > button:hover { background: var(--surface-muted); border-color: var(--border); }
+.admin-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 24px; margin: 0; }
+.admin-metrics > div { border-left: 2px solid var(--border); padding-left: 16px; }
+.admin-metrics dt { font-size: .875rem; color: var(--text-muted); }
+.admin-metrics dd { margin: 8px 0 0; font-size: 1.75rem; line-height: 1.4; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 479px) { .admin-metrics { grid-template-columns: minmax(0, 1fr); gap: 16px; } }

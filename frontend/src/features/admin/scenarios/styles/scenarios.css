@@ -1,0 +1,52 @@
+.admin-scenario-browser { display: grid; gap: 24px; }
+.admin-scenario-browser h2 { font-size: 1.25rem; }
+.admin-scenario-topic-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; }
+.admin-scenario-topic-picker .form-field { flex: 0 1 400px; margin: 0; min-width: 0; }
+.admin-scenario-topic-picker > p { flex: 1 1 240px; margin: 0; color: var(--text-muted); font-size: .875rem; }
+.admin-scenarios-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; font-size: .875rem; }
+.admin-scenarios-table th, .admin-scenarios-table td { padding: 20px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow-wrap: anywhere; }
+.admin-scenarios-table th:first-child { width: auto; }
+.admin-scenarios-table th:nth-child(2) { width: 28%; }
+.admin-scenarios-table th:nth-child(3) { width: 10%; }
+.admin-scenarios-table th:nth-child(4) { width: 16%; }
+.admin-scenarios-table th:last-child { width: 128px; }
+.admin-scenarios-table th:nth-child(n+3), .admin-scenarios-table td:nth-child(n+3) { text-align: center; }
+.admin-scenarios-table .admin-row-actions { justify-content: center; flex-wrap: nowrap; }
+.admin-scenarios-table thead th { background: var(--surface-muted); font-weight: 600; }
+.admin-scenarios-table tbody th { font-weight: 400; }
+.admin-scenarios-table strong { font-size: 1rem; }
+.admin-scenarios-table td > span:not(.status-badge) { display: block; margin-top: 4px; }
+.admin-scenarios-table p { color: var(--text-muted); font-size: .875rem; }
+.admin-scenarios-table p { margin: 8px 0 0; }
+.admin-scenario-icon-action { width: 44px; min-width: 44px; height: 44px; padding: 10px; }
+.admin-scenario-editor { margin-block: 24px; max-width: none; padding: 0; background: transparent; border: 0; }
+.admin-scenario-editor > h2 { margin-bottom: 24px; }
+.admin-scenario-form-section { padding-block: 24px; border-top: 1px solid var(--border); }
+.admin-scenario-form-section h3 { font-size: 1.125rem; margin-bottom: 8px; }
+.admin-scenario-form-section > p { color: var(--text-muted); font-size: .875rem; margin-bottom: 24px; }
+.admin-scenario-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; max-width: 1000px; }
+.admin-scenario-field-wide { grid-column: 1 / -1; }
+.admin-scenario-editor .admin-choice { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; line-height: 1.6; padding-block: 10px; }
+.admin-scenario-editor .admin-choice input { margin-top: 3px; }
+.admin-scenario-levels { display: flex; gap: 32px; }
+.admin-scenario-editor .admin-scenario-levels legend { margin-bottom: 8px; }
+.admin-scenario-form-section > .form-field { max-width: 400px; }
+.admin-role-variant { padding: 20px; margin-block: 24px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-muted); }
+.admin-scenario-editor .admin-role-variant legend { padding-inline: 8px; margin-bottom: 12px; }
+.admin-scenario-editor .actions { margin-bottom: 0; }
+@media (max-width: 1399px) {
+  .admin-scenarios-table, .admin-scenarios-table tbody { display: block; }
+  .admin-scenarios-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .admin-scenarios-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-block: 24px; border-bottom: 1px solid var(--border); }
+  .admin-scenarios-table th, .admin-scenarios-table td { display: block; width: auto; border: 0; padding: 0; }
+  .admin-scenarios-table th:first-child, .admin-scenarios-table td:nth-child(2), .admin-scenarios-table td:last-child { width: auto; grid-column: 1 / -1; }
+  .admin-scenarios-table th:last-child { width: auto; }
+  .admin-scenarios-table th:nth-child(n+3), .admin-scenarios-table td:nth-child(n+3) { text-align: left; }
+  .admin-scenarios-table .admin-row-actions { justify-content: flex-start; }
+  .admin-scenarios-table td[data-label]::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: 8px; }
+}
+@media (max-width: 767px) {
+  .admin-scenario-fields { grid-template-columns: minmax(0, 1fr); }
+  .admin-role-variant { padding: 16px; }
+  .admin-scenario-topic-picker { gap: 12px; }
+}
