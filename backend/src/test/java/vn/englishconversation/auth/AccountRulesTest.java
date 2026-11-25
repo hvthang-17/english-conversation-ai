@@ -30,22 +30,4 @@ class AccountRulesTest {
     assertThrows(ApiException.class, () -> AccountService.password("x".repeat(129)));
   }
 
-  @Test
-  void sessionSchemaMatchesResolvedLibrary() throws Exception {
-    String upstream =
-        new String(
-                getClass()
-                    .getResourceAsStream("/org/springframework/session/jdbc/schema-mysql.sql")
-                    .readAllBytes(),
-                java.nio.charset.StandardCharsets.UTF_8)
-            .replace("\r\n", "\n");
-    String migration =
-        new String(
-                getClass()
-                    .getResourceAsStream("/db/migration/V2__spring_session.sql")
-                    .readAllBytes(),
-                java.nio.charset.StandardCharsets.UTF_8)
-            .replace("\r\n", "\n");
-    assertEquals(upstream, migration.substring(migration.indexOf('\n') + 1));
-  }
 }

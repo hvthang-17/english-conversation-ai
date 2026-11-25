@@ -28,13 +28,15 @@ public class AccountService {
   private final String dummy;
   private final ProfileService profiles;
   private final AdminAudit audit;
+  private final vn.englishconversation.auth.service.AccountLifecycleService lifecycle;
 
   public AccountService(
       UserRepository users,
       PasswordEncoder encoder,
       JdbcIndexedSessionRepository sessions,
       ProfileService profiles,
-      AdminAudit audit) {
+      AdminAudit audit, vn.englishconversation.auth.service.AccountLifecycleService lifecycle) {
+    this.lifecycle=lifecycle;
     this.profiles = profiles;
     this.audit = audit;
     this.users = users;
@@ -91,7 +93,7 @@ public class AccountService {
       throw invalid();
     }
     UserAccount u = found;
-    if (!encoder.matches(password, u.passwordHash) || !u.status.equals("ACTIVE")) throw invalid();
+    if (!encoder.matches(password, u.passwordHash) || (!u.status.equals("ACTIVE") || u.deletionRequestedAt!=null)) throw invalid();
     u.lastLoginAt = u.updatedAt = Instant.now();
     return UsernamePasswordAuthenticationToken.authenticated(
         new AccountPrincipal(u.id, u.securityVersion),
@@ -108,6 +110,7 @@ public class AccountService {
     u.passwordHash = encoder.encode(next);
     u.securityVersion++;
     u.passwordChangedAt = u.updatedAt = Instant.now();
+    lifecycle.invalidateReset(u.id);
     users.flush();
     revoke(u.id);
   }
@@ -119,14 +122,22 @@ public class AccountService {
 
   @Transactional
   public UserResponse changeAccess(AccountPrincipal actor, long id, String role, String status) {
+    if (id == actor.id()) {
+      lockAdmin(actor);
+      throw new ApiException(409, "ADMIN_SELF_ACCESS", "Hãy nhờ quản trị viên khác thay đổi quyền hoặc trạng thái của bạn.");
+    }
+    if (role == null && status == null)
+      throw new ApiException(400, "ACCESS_CHANGE_REQUIRED", "Hãy chọn quyền hoặc trạng thái cần đổi.");
     UserAccount target;
     if (id < actor.id()) {
       target = lockTarget(id);
       lockAdmin(actor);
     } else {
-      UserAccount admin = lockAdmin(actor);
-      target = id == actor.id() ? admin : lockTarget(id);
+      lockAdmin(actor);
+      target = lockTarget(id);
     }
+    if (target.deletionRequestedAt != null)
+      throw new ApiException(409, "ACCOUNT_DELETION_PENDING", "Tài khoản đang chờ xóa.");
     String previousRole = target.role;
     String previousStatus = target.status;
     UserResponse result = updateAccess(target, role, status);
@@ -153,6 +164,7 @@ public class AccountService {
 
   private UserResponse updateAccess(UserAccount u, String role, String status) {
     if (role == null) role = u.role;
+    if (status == null) status = u.status;
     if (!u.role.equals(role) || !u.status.equals(status)) {
       u.role = role;
       u.status = status;
@@ -169,7 +181,7 @@ public class AccountService {
   }
 
   public static boolean valid(UserAccount u, AccountPrincipal p) {
-    return u.status.equals("ACTIVE") && u.securityVersion == p.securityVersion();
+    return u.deletionRequestedAt==null && u.status.equals("ACTIVE") && u.securityVersion == p.securityVersion();
   }
 
   public UserResponse current(long id) {

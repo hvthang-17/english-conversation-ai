@@ -25,6 +25,7 @@ public class UserAccount {
   @Column(name = "security_version", nullable = false)
   public long securityVersion;
 
+  public Instant deletionRequestedAt;
   public Instant passwordChangedAt;
   public Instant lastLoginAt;
 

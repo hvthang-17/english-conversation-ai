@@ -11,8 +11,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("production")
-@EnabledIfEnvironmentVariable(named = "PHASE1_MYSQL_TEST", matches = "true")
+@ActiveProfiles({"g1", "production"})
+@EnabledIfEnvironmentVariable(named = "G1_MYSQL_TEST", matches = "true")
 class ProductionCookieMysqlTest {
   @Value("${local.server.port}")
   int port;

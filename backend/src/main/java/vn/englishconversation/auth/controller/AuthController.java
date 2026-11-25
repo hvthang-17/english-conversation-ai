@@ -15,6 +15,7 @@ import vn.englishconversation.auth.dto.ChangePasswordRequest;
 import vn.englishconversation.auth.dto.CredentialsRequest;
 import vn.englishconversation.auth.dto.CsrfResponse;
 import vn.englishconversation.auth.security.AccountPrincipal;
+import vn.englishconversation.auth.service.AccountRateLimiter;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.user.dto.UserResponse;
 
@@ -23,14 +24,16 @@ import vn.englishconversation.user.dto.UserResponse;
 @Profile("!bootstrap")
 public class AuthController {
   private final AccountService accounts;
+  private final AccountRateLimiter rateLimiter;
   private final SecurityContextRepository contexts;
   private final SessionAuthenticationStrategy strategy;
 
   public AuthController(
-      AccountService accounts,
+      AccountService accounts, AccountRateLimiter rateLimiter,
       SecurityContextRepository contexts,
       SessionAuthenticationStrategy strategy) {
     this.accounts = accounts;
+    this.rateLimiter = rateLimiter;
     this.contexts = contexts;
     this.strategy = strategy;
   }
@@ -43,7 +46,8 @@ public class AuthController {
 
   @PostMapping("/register")
   @ResponseStatus(HttpStatus.CREATED)
-  public UserResponse register(@Valid @RequestBody CredentialsRequest c) {
+  public UserResponse register(@Valid @RequestBody CredentialsRequest c, HttpServletRequest request) {
+    rateLimiter.check("register-ip:"+request.getRemoteAddr(),30,0);
     return accounts.register(c.email(), c.password());
   }
 

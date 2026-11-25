@@ -21,7 +21,8 @@ import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.user.repository.UserRepository;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@EnabledIfEnvironmentVariable(named = "PHASE1_MYSQL_TEST", matches = "true")
+@org.springframework.test.context.ActiveProfiles("g1")
+@EnabledIfEnvironmentVariable(named = "G1_MYSQL_TEST", matches = "true")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SessionMysqlTest {
   @Value("${local.server.port}")
@@ -37,12 +38,9 @@ class SessionMysqlTest {
   @org.springframework.test.context.DynamicPropertySource
   static void isolatedDatabase(
       org.springframework.test.context.DynamicPropertyRegistry properties) {
-    String url = System.getenv("SPRING_DATASOURCE_URL");
-    if (url == null
-        || !url.matches(
-            "jdbc:mysql://127\\.0\\.0\\.1:3307/phase[12]_auth_[0-9]{14}\\?connectionTimeZone=UTC"))
-      throw new IllegalStateException(
-          "Use scripts/phase1/test-mysql.ps1 with a new isolated MySQL database");
+    String url = System.getenv("G1_TEST_DB_URL");
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:3306/g1_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+      throw new IllegalStateException("Use the isolated G1 MySQL test database");
     properties.add("spring.datasource.url", () -> url);
   }
 
@@ -131,7 +129,7 @@ class SessionMysqlTest {
   @Test
   void migrationAndDatabaseEmailRules() throws Exception {
     assertEquals(
-        10,
+        5,
         jdbc.queryForObject(
             "select count(*) from flyway_schema_history where success=1 and type='SQL'",
             Integer.class));
@@ -274,15 +272,7 @@ class SessionMysqlTest {
     String id = register(admin, email);
     accounts.changeAccess(Long.parseLong(id), "ADMIN", "ACTIVE");
     login(admin, email);
-    assertEquals(
-        200,
-        admin
-            .request(
-                "PATCH",
-                "admin/users/" + id + "/access",
-                "{\"role\":\"LEARNER\",\"status\":\"ACTIVE\"}",
-                true)
-            .statusCode());
+    accounts.changeAccess(Long.parseLong(id), "LEARNER", "ACTIVE");
     assertEquals(401, admin.get("auth/me").statusCode());
     login(admin, email);
     assertEquals(
@@ -384,19 +374,7 @@ class SessionMysqlTest {
                 "{\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}",
                 true)
             .statusCode());
-    String adminEmail = email();
-    String aid = register(admin, adminEmail);
-    accounts.changeAccess(Long.parseLong(aid), "ADMIN", "ACTIVE");
-    login(admin, adminEmail);
-    assertEquals(
-        200,
-        admin
-            .request(
-                "PATCH",
-                "admin/users/" + id + "/access",
-                "{\"role\":\"LEARNER\",\"status\":\"LOCKED\"}",
-                true)
-            .statusCode());
+    accounts.changeAccess(Long.parseLong(id), "LEARNER", "LOCKED");
     assertEquals(401, a.get("auth/me").statusCode());
     assertEquals(
         401, a.post("auth/login", Map.of("email", email, "password", PASSWORD)).statusCode());

@@ -14,7 +14,7 @@
 - Chưa tạo admin_audit_logs/catalog trong giai đoạn này; API thay quyền/trạng thái là nền tảng ADMIN-01. Giao diện quản trị/audit được làm ở giai đoạn tương ứng.
 
 ## Kiểm chứng và giới hạn
-Xem [biên bản giai đoạn 1](../development/phase1/README.md). Test JDBC dùng database local mới, HTTP thật; không dùng H2 hoặc bootstrap để chứng minh Session. Cookie production được kiểm tra thuộc tính qua HTTP local, chưa phải kiểm thử TLS/reverse proxy production. Chưa có email verification/reset password, rate limit hoặc tính năng học tập; không gọi Gemini.
+Xem [Kế hoạch G1](../development/full-system-implementation-plan.md#g1--tài-khoản-và-hồ-sơ-học-viên). Test JDBC dùng database local mới, HTTP thật; không dùng H2 hoặc bootstrap để chứng minh Session. Cookie production được kiểm tra thuộc tính qua HTTP local, chưa phải kiểm thử TLS/reverse proxy production. Chưa có email verification/reset password, rate limit hoặc tính năng học tập; không gọi Gemini.
 
 ## Nguồn
 - [Spring Session JDBC](https://docs.spring.io/spring-session/reference/configuration/jdbc.html)
