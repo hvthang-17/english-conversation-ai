@@ -10,6 +10,10 @@ Trên máy Windows hiện tại, `.agents/skills` là junction tới `agents/ski
 
 Client có thể nhận skill ở lượt tiếp theo; nếu chưa liệt kê, mở phiên mới và kiểm tra cơ chế khám phá của client. Tool/MCP là đặc tính môi trường, không phải cam kết dự án.
 
+## Quy chuẩn giao diện của dự án
+
+Khi thiết kế hoặc triển khai UI, đọc [Quy chuẩn cải tiến giao diện](interface-design-standard.md) và [ADR 0010](../decisions/0010-interface-design-system.md) trước. Skill frontend-design cung cấp phương pháp; quy chuẩn dự án chốt hướng áp dụng, token, màn hình và điều kiện nghiệm thu. Không thay theme theo ví dụ của skill.
+
 ## Choose by task
 
 | Task | Installed skill | Scope in this project |

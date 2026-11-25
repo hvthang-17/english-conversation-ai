@@ -1,0 +1,91 @@
+{
+  "recorded_at": "2026-11-24T16:21:36.695Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+  "secure_context": true,
+  "media_recorder": true,
+  "get_user_media": true,
+  "supported_types": [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4"
+  ],
+  "synthetic": {
+    "status": "CAPTURED_AND_DECODED",
+    "source": "SYNTHETIC_TONE_NOT_MICROPHONE",
+    "actual_mime": "audio/webm;codecs=opus",
+    "bytes": 18515,
+    "elapsed_ms": 1843,
+    "duration_seconds": 1.14,
+    "sample_rate": 48000,
+    "rms": 0.703155003014736,
+    "provider_wav": {
+      "bytes": 36524,
+      "format": "PCM16_MONO_16000",
+      "decoded_seconds": 1.14
+    }
+  },
+  "microphone": {
+    "status": "CAPTURED_AND_DECODED",
+    "source": "PHYSICAL_MICROPHONE",
+    "actual_mime": "audio/webm;codecs=opus",
+    "bytes": 131537,
+    "elapsed_ms": 8728,
+    "duration_seconds": 8.16,
+    "sample_rate": 48000,
+    "rms": 0.09759630707447557,
+    "provider_wav": {
+      "bytes": 261164,
+      "format": "PCM16_MONO_16000",
+      "decoded_seconds": 8.16
+    },
+    "user_heard_clear_speech": true
+  },
+  "uploaded": false,
+  "tts": {
+    "local_english_voice_count": 3,
+    "attempts": [
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 246,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 79,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 263,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 352,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 567,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 0.75,
+        "start_latency_ms": 270,
+        "status": "PLAYED"
+      }
+    ]
+  }
+}

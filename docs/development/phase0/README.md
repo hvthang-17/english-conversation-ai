@@ -1,40 +1,32 @@
 # Giai đoạn 0 — Kết quả thực hiện và phần còn lại
 
-## Trạng thái
-Đã thực hiện các phần độc lập ngày **20/11/2026**; chưa đóng toàn bộ giai đoạn vì thử Gemini thật/đo provider được chủ dự án chủ động hoãn. Không coi dry-run, mẫu tổng hợp hoặc tài liệu online là kết quả live.
+## Kết quả P0 của bản dựng sạch 46 bảng
 
-**Có đủ căn cứ kỹ thuật để bắt đầu tài khoản/Session khi được giao giai đoạn 1:** MySQL thật đã chạy, quy tắc auth/retention rõ. Việc chọn model và đánh giá AI thật vẫn cần hoàn tất trước khi tích hợp hội thoại.
+Đối chiếu [P0.1–P0.6 trong kế hoạch hiện tại](../full-system-implementation-plan.md#p0--nền-tảng-và-kiểm-chứng-sớm). Kết quả kiểm tra ngày 24–25/11/2026 theo múi giờ Việt Nam.
 
-## Theo dõi P0.1–P0.8
+**Đạt phần nền tảng.** Backend bootstrap và frontend khởi động được, V1 chạy trên đúng schema `english_conversation`, bộ kiểm tra P0 chạy lại được. **Nghiệm thu P0 còn mở** ở ma trận micro thật và kiểm chứng provider. Mốc này dựng hai bảng nền, các migration còn lại đi theo từng nhóm và được đối chiếu ở E2E.
 
-| Đầu việc | Trạng thái | Bằng chứng/kết quả | Phần còn lại |
-| --- | --- | --- | --- |
-| P0.1 | Hoàn tất quyết định đầu vào | Hạn 28/12/2026, 2 người × 5 giờ/ngày × 5 ngày/tuần, dùng thử khoảng 10; hiện chỉ chuẩn bị offline, không có quyền chi phí API | Phê duyệt phạm vi live mới nếu muốn đo Gemini |
-| P0.2 | Đã chốt | [ADR 0006](../../decisions/0006-phase0-operating-decisions.md): audio 1 giờ, nháp 30 phút, AI log 30 ngày, backup/ngày giữ 7 ngày, cleanup 5 phút, notice/browser, audio 60 giây | Các job/UI/server validation chưa triển khai, cần làm theo giai đoạn |
-| P0.3 | Hoàn tất smoke local | [MySQL](mysql.md): 8.4.13:3307, app login, Unicode tạm, UTC/TLS, restart; Spring Boot default profile/Hikari/Flyway/JPA thành công | Chưa có schema nghiệp vụ/Session hoặc migration test |
-| P0.4 | Chuẩn bị offline, live hoãn theo yêu cầu | [Probe Java](../../../experiments/phase0/gemini/), 8 test đạt, dry-run 4 case, WAV SAPI tổng hợp và manifest | 0 Gemini request, chưa có câu trả lời/chép lời/phản hồi thật |
-| P0.5 | Đạt smoke desktop sớm trong phạm vi đã điều chỉnh | [Audio](audio.md), [metadata chủ dự án gửi](evidence/desktop-audio.json): WebM/Opus, 11.28 giây, nghe rõ, không upload; riêng headless có tone capture/decode | Edge, Android, stable matrix, noise/60 giây và chép lời provider chưa thử |
-| P0.6 | Tra cứu và chuẩn bị, chưa đủ chốt model/live metrics | [Gemini/key](gemini.md): Java REST prototype, SDK candidate, model candidate, timeout/output limit thăm dò; usage/cost/latency provider chưa có | Chỉ quyết định sau live test được cho phép; không giả định free quota hoặc giá bằng 0 |
-| P0.7 | Hoàn tất khâu chuẩn bị | [Khảo sát](../../research/needs-survey.md), [AI rubric](../../research/ai-evaluation.md), [dùng thử](../../research/usability-test.md), 32 fixture tổng hợp | Chưa phát hành khảo sát/tuyển người/thu dữ liệu hoặc chuyên gia xác nhận gold set |
-| P0.8 | Hoàn tất cập nhật hiện tại | ADR 0006, [kế hoạch lịch thực tế](../implementation-plan.md), [risk register](risk-register.md), tài liệu/fixtures/scripts | Tiếp tục cập nhật khi có live evidence hoặc điều kiện thay đổi |
+| Mục | Kết quả lần này | Còn cần |
+| --- | --- | --- |
+| P0.1 | **Đạt.** Bản sao frontend sạch cài từ cache và nhận HTTP 200 `UP` qua proxy Vite. Lần chạy lại trên workspace đạt typecheck, lint và build. Khi thiếu `P0_DB_USERNAME`, startup báo đúng tên biến và test xác nhận thông báo lỗi không chứa secret giả lập. | Kiểm tra cấu hình triển khai cùng Session JDBC ở G1. |
+| P0.2 | **Đạt V1 trên đích hiện tại.** Ngày 25/11, kiểm tra được `english_conversation` rỗng trước khi áp V1 từ `db/migration`. Hai ca MySQL đạt. Health trả HTTP 200, restart giữ schema và không chạy lại V1. Truy vấn sau kiểm thử xác nhận đúng script, hai bảng nền và không còn dòng fixture. [Kết quả MySQL](mysql.md). | Kiểm tra MySQL 8.4 và Session JDBC ở G1, đối chiếu đủ 46 bảng ở E2E. |
+| P0.3 | **Đạt hợp đồng nền bằng fixture.** Năm ca health/API chạy lại đạt. MockMvc kiểm tra token CSRF, thiếu CSRF, lỗi JSON, validation và hợp đồng phân trang với fixture. Proxy Vite có bằng chứng từ lần khởi động bản sao sạch. | Kiểm tra thuộc tính cookie Session JDBC ở G1 và truy vấn phân trang trên catalog thật ở G2. |
+| P0.4 | **Đạt một phần.** Micro thật trên Chrome 138 Windows thu rõ 8,16 giây và 6,78 giây, chuyển được WAV PCM 16-bit mono 16 kHz. Thử thủ công ghi nhận chưa cấp quyền thì không thu được, cấp quyền ở tab khác thì thu lại được. Hai giọng TTS đã phát hết qua hai lần thử. Kiểm tra tự động trên Chrome và Edge xác nhận chuyển mã, từ chối quyền và dừng track tone khi rời trang. [Bằng chứng và ma trận thiết bị](audio.md). | Hoàn tất ma trận micro thật và xác nhận tiếp khả năng provider nhận WAV. |
+| P0.5 | **Đạt offline, chờ thử thật.** Tám test Java Gemini và bốn test Python đạt. Fixture bao phủ CHAT, TRANSCRIPTION, FEEDBACK, Azure SCRIPTED/UNSCRIPTED, thiếu trường, JSON lỗi, quota, timeout và không có tiếng nói. Tổng số lần gọi Gemini/Azure thật là 0. | Xác nhận phạm vi gọi, đo kết quả thật và dùng bằng chứng để chốt mức bàn giao phát âm ở G5/G6. |
+| P0.6 | **Đạt phần chuẩn bị.** Maven `verify` ngày 25/11 chạy đạt 13 ca, gồm SMTP giả lập local. 55 ca MySQL opt-in được bỏ qua trong lệnh này, hai ca MySQL P0 đã chạy riêng. Bộ đánh giá có 32 kịch bản A2/B1, kiểm tra các mốc TTL và [phiếu dùng thử](../../research/usability-test.md) với mẫu số hoàn thành. | Tuyển người, chạy worker/restore thực tế và đo các chỉ số ở các mốc tương ứng trong kế hoạch. |
 
-6 đầu việc hoàn tất theo phạm vi hiện tại; P0.4/P0.6 không đánh dấu hoàn tất. Mốc M1–M5 nghiệp vụ chưa đạt.
+### Chạy lại bộ kiểm tra
 
-## Artifact và giới hạn
-- MySQL riêng trong .runtime, root .env và option file chứa secret đều local/ignored; không đụng dịch vụ MySQL92 của máy.
-- Flyway chỉ có flyway_schema_history, không có SQL/entity 20 bảng. Không tuyên bố đã triển khai persistence nghiệp vụ hoặc auth.
-- Bộ thử Gemini độc lập, không thêm dependency provider vào backend; wrapper từ chối Live theo yêu cầu hiện tại. Metadata dry-run không chứa raw prompt/response/audio/key.
-- Trang audio static local không upload; browser báo cáo khả năng codec không chứng minh provider chấp nhận. Bằng chứng micro thật do chủ dự án thực hiện, agent chỉ kiểm tra metadata gửi lại.
-- Fixture nghiên cứu là nội dung biên soạn, không có số liệu người dùng hoặc kết quả AI giả.
+- Tại `frontend/`, dùng Node 24 đúng phiên bản trong manifest, chạy `npm run typecheck`, `npm run lint` và `npm run build`. Chạy `npm run dev` và backend profile `bootstrap` để kiểm tra đường dẫn `/api/v1/system/health` qua proxy.
+- Tại `backend/`, chạy `./mvnw.cmd -Dtest=PhaseZeroApiTest,HealthEndpointTest test`. Với MySQL, cấp `P0_DB_USERNAME` và `P0_DB_PASSWORD` cho schema mới rồi chạy `scripts/phase0/test-clean-db.ps1` từ thư mục gốc. Profile `bootstrap,p0-db` chạy JDBC/Flyway và health. Các API nghiệp vụ tiếp tục được giới hạn trong profile này cho tới khi triển khai migration và runtime tương ứng.
+- Từ gốc, chạy `python experiments/phase0/offline_checks.py`. Bộ test Gemini chạy từ `experiments/phase0/gemini` bằng Maven `test`. Để mở probe audio, chạy `python -m http.server 18765 --bind 127.0.0.1 --directory experiments/phase0/audio` rồi mở `http://127.0.0.1:18765`. Biểu mẫu chỉ ghi metadata; chọn hai giọng local, thử nghe/dừng và sao chép JSON sau khi xác nhận bản ghi nghe rõ. Kiểm thử thiết bị Android cần một URL HTTPS có thể truy cập từ điện thoại để cấp quyền micro.
 
-## Bằng chứng local
-Các file .runtime/phase0/mysql-verification.json, gemini-dry-run.json, synthetic-audio.json và browser-audio-headless.json là artifact của máy hiện tại, không cần commit. Test report dưới experiments/phase0/gemini/target/surefire-reports được tái tạo bằng script. Bản sao metadata đã loại secret được lưu cùng tài liệu: [MySQL smoke](evidence/mysql-smoke.json), [Gemini offline](evidence/gemini-offline.json), [tone tổng hợp trên trình duyệt](evidence/browser-tone.json) và [micro thật do chủ dự án kiểm thử](evidence/desktop-audio.json). Các file ghi rõ nguồn bằng chứng; không chứa bản ghi âm.
+### Các ca cần hoàn thành để nghiệm thu
 
-Ngày/giờ của evidence lưu UTC; lịch thực hiện theo Asia/Ho_Chi_Minh. Không công bố credential hoặc raw server log chưa che dữ liệu.
+1. **Thiết bị thật.** Trên Chrome Windows, bổ sung ca đặt quyền **Chặn** và quan sát chỉ báo micro tắt khi rời trang đang thu. Chạy đủ ca cấp/từ chối quyền, thu, nghe lại và dừng khi rời trang trên Edge Windows và Chrome Android. Thử hai giọng TTS local nếu thiết bị có sẵn, kiểm tra nghe chậm và hủy phát. Ghi OS, phiên bản trình duyệt, mã codec, trạng thái micro và độ trễ TTS theo [ma trận](audio.md).
+2. **Gemini thật.** Sau khi có phạm vi được cấp, dùng hội thoại hư cấu chạy CHAT A2, CHAT B1, một mẫu chép lời WAV và một mẫu FEEDBACK. Ghi model, số lần gọi, kết quả đúng vai và mức độ, cấu trúc phản hồi, độ trễ và usage nếu có. Có thể dùng tối đa bốn lần gọi ban đầu nếu được duyệt.
+3. **Azure thật.** Sau khi có phạm vi được cấp, thử `en-US` ở hai chế độ bên dưới. Ghi region, định dạng đầu vào, thời lượng, kết quả theo từ/âm vị, điểm ngữ điệu nếu có và lỗi có thể gặp. Chốt tiêu chí bàn giao G5/G6 từ kết quả quan sát.
 
-## Điểm dừng và bước tiếp
-Hiện chủ dự án yêu cầu **chưa gọi API**, nên không thử key/quota/model. Có thể chuẩn bị/triển khai AUTH-01 sau khi được giao; trước CHAT-01 cần yêu cầu live mới, model access, hạn mức/ngân sách và kết quả đo thật. Hướng dẫn lấy key đã có, key không tự cấp quyền gọi.
+#### Mẫu thử Azure
 
-## Cập nhật sau giai đoạn 1
-
-Ngày 20/11/2026, [giai đoạn 1](../phase1/README.md) đã triển khai users, Session JDBC và tài khoản. Các mô tả “chưa có bảng nghiệp vụ/auth” phía trên là ảnh chụp kết quả riêng của P0; hiện trạng runtime đã thay đổi ở P1. P0.4/P0.6 Gemini live vẫn chưa hoàn tất và chưa được gọi.
+Dùng cùng một mẫu WAV tiếng Anh hư cấu ngắn và một mẫu không có tiếng nói. Với `SCRIPTED`, gửi câu tham chiếu. Với `UNSCRIPTED`, bỏ câu tham chiếu. Xác nhận hỗ trợ IPA, điểm cấp từ/âm vị, điểm ngữ điệu tùy chọn và trường hợp dịch vụ trả thiếu dữ liệu. Đo thời gian và kết quả từng chế độ. Với file trên 30 giây, kiểm chứng chế độ nhận dạng liên tục và quy tắc đối chiếu lỗi đọc thiếu trước khi chọn cách tích hợp G5/G6. [Azure Pronunciation Assessment](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-pronunciation-assessment)

@@ -1,25 +1,21 @@
 # Tổng quan sản phẩm
 
-## Bài toán
-Người học thiếu môi trường thực hành, ngại giao tiếp và khó nhận phản hồi khi tự học. Website tạo môi trường mô phỏng tình huống, liên kết luyện tập với phản hồi và ôn tập.
+Website hỗ trợ người học tiếng Anh A2–B1 tự luyện giao tiếp theo tình huống, nghe lời thoại mẫu và nhận phản hồi sau khi luyện.
 
-## Đối tượng và vai trò
-- Người học có kiến thức cơ bản, tự chọn trình độ A2 hoặc B1.
-- Khách xem giới thiệu và tình huống mẫu, đăng ký/đăng nhập.
-- Người học quản lý hồ sơ, luyện tập, phản hồi, ôn tập và lịch sử của mình.
-- Quản trị viên quản lý tài khoản, chủ đề, tình huống và số liệu tổng hợp. Không mặc định có quyền đọc hội thoại cá nhân.
+## Bản dựng hiện tại
 
-## Phạm vi chính
-Tài khoản, 8 tình huống mẫu, hội thoại theo lượt, phản hồi cuối buổi, ôn tập, lịch sử, thống kê cơ bản và quản trị. Hội thoại có chế độ **Chat văn bản** và **Luyện nghe và nói**, với phụ đề câu AI theo yêu cầu trong chế độ nghe. [Luồng người dùng](user-flows.md)
+Chạy Maven với cấu hình mặc định để mở profile `g6`. Flyway áp dòng migration hiện tại đến V19. Kế hoạch sản phẩm gồm 10 nhóm; trạng thái từng nhóm và bằng chứng nghiệm thu được theo dõi riêng. [Thiết lập local](../development/setup.md) · [Kế hoạch triển khai](../development/full-system-implementation-plan.md) · [Biên bản nghiệm thu](../development/README.md#tiến-độ-và-nghiệm-thu)
 
-Tình huống: giới thiệu bản thân, cuộc sống sinh viên, gọi món, mua sắm, hỏi đường, đặt phòng, sở thích/cuối tuần, phỏng vấn cơ bản.
+- **G1 · Tài khoản và hồ sơ.** Tài khoản email/mật khẩu, Session JDBC, khôi phục mật khẩu qua liên kết email và quản lý dữ liệu cá nhân.
+- **G2–G3 · Nội dung và ôn tập.** Khám phá bài A2/B1, chọn tình huống, lưu bài, học từ và hội thoại mẫu, ôn qua sổ tay.
+- **G4 · Luyện nghe.** Làm đề đã công khai, nghe MP3 do Azure TTS tạo sẵn, tiếp tục lượt làm và xem lời giải sau khi nộp.
+- **G5 · Luyện phát âm.** Đọc theo mẫu hoặc nói đuổi. Azure chấm `SCRIPTED` khi được bật.
+- **G6 · Hội thoại AI.** Chọn vai và chế độ trước khi bắt đầu. Trong VOICE, học viên nghe câu AI bằng TTS cục bộ, ghi âm, nghe lại và gửi cho Gemini chép lời. CHAT dùng bản chép đã xác nhận. Khi chấm phát âm được bật, Azure `UNSCRIPTED` tự chấm bản ghi gốc đủ điều kiện sau xác nhận. Kết quả từng lượt, nhận xét và lịch sử có thể xem lại.
 
-## Ngoài phạm vi
-Hội thoại giọng nói thời gian thực, chấm phát âm chuyên biệt, cấp chứng chỉ, kết luận CEFR, huấn luyện mô hình, lớp học/giáo viên và thanh toán.
+## Phạm vi tiếp theo
 
-## Đánh giá và bàn giao
-Đánh giá chức năng, phản hồi AI trên hội thoại mẫu, độ trễ, mức sử dụng API và trải nghiệm dùng thử. Các thống kê hoạt động không chứng minh cải thiện năng lực dài hạn.
+G7–G10 bao gồm lộ trình học, theo dõi tiến độ và nhắc học, hỗ trợ và quản trị đầy đủ. Kế hoạch xác định tiêu chí bàn giao. Phạm vi đồ án tập trung vào luyện theo lượt, không bao gồm thoại thời gian thực, cấp chứng chỉ hoặc kết luận CEFR.
 
-Bàn giao dự kiến: mã nguồn, migration và dữ liệu tình huống mẫu, hướng dẫn sử dụng/triển khai, kết quả kiểm thử, báo cáo và slide.
+## Đánh giá
 
-Đã chốt hạn 28/12/2026, hai người × 5 giờ/ngày × 5 ngày/tuần, dùng thử khoảng 10 người. [Kế hoạch theo lịch thực tế](../development/implementation-plan.md) thay ước lượng một người ban đầu; [giai đoạn 0](../development/phase0/README.md) đã có bằng chứng MySQL/micro/offline, chưa live Gemini theo yêu cầu. Các mốc nghiệp vụ chưa đạt.
+Đánh giá hành vi chức năng, độ đúng vai, chất lượng phản hồi, thao tác micro và chi phí API. Dự kiến khảo sát khoảng 10 người. Kết quả giả lập xác nhận tích hợp; bằng chứng chất lượng cần đầu ra thật và kết quả trên thiết bị mục tiêu. [Yêu cầu sản phẩm](requirements.md) · [Luồng người dùng](user-flows.md) · [Kế hoạch đánh giá AI](../research/ai-evaluation.md)

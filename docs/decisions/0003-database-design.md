@@ -1,5 +1,7 @@
 # ADR 0003: Mô hình dữ liệu cho luyện giao tiếp
 
+Phạm vi toàn hệ thống cho bản đầu được cập nhật tại [ADR 0012 — ERD 46 bảng](0012-system-database-scope.md). ADR này ghi các quyết định của mô hình nền.
+
 ## Trạng thái
 
 Chấp nhận làm thiết kế cơ sở; được [ADR 0004](0004-session-authentication.md) bổ sung hai bảng Session JDBC. **Chưa tạo migration, JPA entity nghiệp vụ hoặc bảng MySQL.** Retention còn mở; cơ chế xác thực đã chốt Session. Không coi ADR là quyền thao tác dữ liệu production.
@@ -10,7 +12,7 @@ Mô hình sơ bộ 10 bảng chưa tách lượt và tin nhắn, transcript chư
 
 ## Quyết định
 
-- Ban đầu 18 bảng ứng dụng (15 nghiệp vụ, 3 vận hành); hiện thêm 2 bảng hạ tầng Session theo ADR 0004, tổng 20 ở [database](../architecture/database.md). [Dictionary](../architecture/database-dictionary.md) sở hữu trường/ý nghĩa, [workflow](../architecture/database-workflows.md) sở hữu trình tự/giao dịch.
+- Ban đầu 18 bảng ứng dụng (15 nghiệp vụ, 3 vận hành); hiện thêm 2 bảng hạ tầng Session theo ADR 0004, tổng 20 ở [database](../architecture/database.md). [Dictionary](../architecture/database.md#3-từ-điển-46-bảng-và-dữ-liệu-mẫu) sở hữu trường/ý nghĩa, [workflow](../architecture/database.md#6-luồng-dữ-liệu) sở hữu trình tự/giao dịch.
 - Tách practice_sessions, conversation_turns và messages; cấp lượt/chống trùng tại server, khóa session khi điều phối. Thứ tự theo turn_no và sender.
 - Snapshot trình độ/bối cảnh trong session để catalog/hồ sơ thay đổi không sửa ý nghĩa lịch sử.
 - Tách audio_submissions khỏi messages; transcript phải được người học xác nhận. Audio gốc chỉ giữ tạm, không BLOB hoặc URL công khai dài hạn.

@@ -8,7 +8,7 @@ Quy tắc bản đầu tại [ADR 0005](docs/decisions/0005-initial-product-rule
 Đọc [tổng quan](docs/product/overview.md), [yêu cầu](docs/product/requirements.md) và [kiến trúc](docs/architecture/overview.md) trước khi thay đổi hành vi sản phẩm.
 
 ## Trạng thái repository
-Repository có frontend/backend và tài khoản Session JDBC (AUTH-01), phần phân quyền tài khoản ADMIN-01; 18 bảng qua Flyway V1–V7, có hồ sơ và catalog 8 bài (PROFILE-01/SCENARIO-01) hội thoại văn bản/HINT ([P3](docs/development/phase3/README.md)) nhận xét cuối buổi ([P4](docs/development/phase4/README.md)) và ôn tập/lịch sử/thống kê ([P5](docs/development/phase5/README.md)). Gemini chat phải bật bằng cấu hình; quản trị catalog đầy đủ thuộc giai đoạn sau. Xem [kết quả P1](docs/development/phase1/README.md).
+Bản dựng sạch đã kiểm chứng Flyway V1, health, API nền và frontend. Các nhóm G1–G10 nghiệm thu theo [kế hoạch hiện tại](docs/development/full-system-implementation-plan.md). Xem [biên bản P0](docs/development/phase0/README.md).
 Không tuyên bố tính năng hoặc lệnh build đã hoạt động khi chưa thực hiện và xác minh.
 Các quyết định chưa chốt nằm trong [ADR](docs/decisions/0001-system-architecture.md).
 

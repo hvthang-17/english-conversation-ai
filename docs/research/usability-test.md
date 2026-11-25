@@ -24,3 +24,11 @@ Sau dùng thử hỏi 1–5 về dễ sử dụng, rõ phản hồi, hữu ích 
 
 ## Tổng hợp
 Báo n thực tế, tỷ lệ hoàn thành/tác vụ, lỗi nổi bật, phân bố điểm và nhóm ý kiến; không thay missing bằng số giả. Tách lỗi phần mềm, lỗi AI, khó hiểu giao diện và vấn đề mạng/thiết bị. Chọn sửa lỗi cản luồng trước, thực hiện test lại phần đổi. Với 10 người chỉ kết luận trải nghiệm ban đầu, không chứng minh tăng năng lực tiếng Anh.
+
+### Mẫu phiếu dùng thử
+
+| Mã người dùng | Mã nhiệm vụ | Trạng thái | Thời gian (giây) | Trợ giúp | Lỗi hoặc quan sát |
+| --- | --- | --- | ---: | --- | --- |
+| P01 | 01 | Chưa chạy | | | |
+
+Mẫu số theo nhiệm vụ là số người được giao nhiệm vụ đó. Người bỏ qua giọng nói theo quyền lựa chọn được ghi riêng với ca bị lỗi. Báo số hoàn thành độc lập và số hoàn thành có trợ giúp. Khi đo độ trễ provider, ghi số mẫu, median/P95 và điều kiện theo từng tác vụ, tách khỏi thời gian người học thao tác.

@@ -1,0 +1,96 @@
+[
+  {
+    "browser": "Microsoft Edge",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.0.0 Safari/537.36 Edg/158.0.0.0",
+    "synthetic": {
+      "status": "CAPTURED_AND_DECODED",
+      "source": "SYNTHETIC_TONE_NOT_MICROPHONE",
+      "actual_mime": "audio/webm;codecs=opus",
+      "bytes": 26449,
+      "elapsed_ms": 1891,
+      "duration_seconds": 1.62,
+      "sample_rate": 48000,
+      "rms": 0.7053085560782627,
+      "provider_wav": {
+        "bytes": 51884,
+        "format": "PCM16_MONO_16000",
+        "decoded_seconds": 1.62
+      }
+    },
+    "browser_denial": "NotAllowedError",
+    "synthetic_track_after_pagehide": "ended",
+    "tts_voice_count": 3,
+    "tts": [
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 383,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 1,
+        "rate": 0.75,
+        "start_latency_ms": 115,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 1,
+        "rate": 0.75,
+        "start_latency_ms": null,
+        "status": "CANCELLED"
+      }
+    ],
+    "physical_microphone_used": false,
+    "uploaded": false
+  },
+  {
+    "browser": "Google Chrome",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/138.0.0.0 Safari/537.36",
+    "synthetic": {
+      "status": "CAPTURED_AND_DECODED",
+      "source": "SYNTHETIC_TONE_NOT_MICROPHONE",
+      "actual_mime": "audio/webm;codecs=opus",
+      "bytes": 27209,
+      "elapsed_ms": 1832,
+      "duration_seconds": 1.68,
+      "sample_rate": 48000,
+      "rms": 0.7037167733936606,
+      "provider_wav": {
+        "bytes": 53804,
+        "format": "PCM16_MONO_16000",
+        "decoded_seconds": 1.68
+      }
+    },
+    "browser_denial": "NotAllowedError",
+    "synthetic_track_after_pagehide": "ended",
+    "tts_voice_count": 3,
+    "tts": [
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 157,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 1,
+        "rate": 0.75,
+        "start_latency_ms": 88,
+        "status": "PLAYED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 1,
+        "rate": 0.75,
+        "start_latency_ms": null,
+        "status": "CANCELLED"
+      }
+    ],
+    "physical_microphone_used": false,
+    "uploaded": false
+  }
+]

@@ -1,45 +1,41 @@
 # Bằng chứng và quy trình kiểm tra audio
 
-## Đã thực hiện
+## Micro thật trên bản dựng sạch ngày 24/11/2026
 
-### Tự động — không dùng micro
-Chromium Headless 138 trên Windows: secure context, MediaRecorder/getUserMedia được phát hiện; hỗ trợ được khai báo cho WebM/Opus, WebM và MP4. Đã capture/decode âm tổng hợp WebM/Opus ở 48 kHz. Metadata tại .runtime/phase0/browser-audio-headless.json; không có file lời nói người dùng hoặc upload.
+Chủ dự án kiểm thử trên Chrome 138 Windows và xác nhận nghe rõ bản ghi WebM/Opus dài **8,16 giây**. Probe chuyển bản ghi sang WAV PCM 16-bit mono 16 kHz và giải mã lại được với cùng thời lượng. Bản ghi được xử lý tại trình duyệt, `uploaded = false`. [Metadata micro thật](evidence/clean-build-chrome-microphone.json).
 
-Lần thử 700 ms ban đầu tạo blob rỗng do clock/graph audio chưa có frame. Đã tái hiện, kiểm tra clock và timeslice, nối graph chạy ở âm lượng 0 và tăng thời gian thử tổng hợp lên 1.8 giây; capture/decode sau sửa đạt. Không dùng kết quả tổng hợp để khẳng định micro thật hoặc chép lời AI đạt.
+Trình duyệt báo có 3 giọng tiếng Anh local. Cùng một giọng `en-US` đã phát thành công 5 lần ở tốc độ `1`, trung vị thời gian bắt đầu **263 ms**, và 1 lần ở tốc độ `0.75`, thời gian bắt đầu **270 ms**. Đây là số đo thử local từ một thiết bị.
 
-### Micro thật — bằng chứng chủ dự án gửi
-[Metadata gốc đã ghi nguồn](evidence/desktop-audio.json) do chủ dự án chạy trên máy tính và gửi trong chat, không phải agent trực tiếp quan sát micro:
+## Kiểm tra lại micro thật và TTS ngày 25/11/2026
 
-| Thuộc tính | Kết quả |
-| --- | --- |
-| Browser | Chrome 138.0.0.0, Windows |
-| Nguồn | PHYSICAL_MICROPHONE |
-| Kết quả | CAPTURED_AND_DECODED |
-| MIME | audio/webm;codecs=opus |
-| Dung lượng | 181769 bytes |
-| Thời lượng decode | 11.28 giây |
-| Sample rate | 48000 Hz |
-| RMS | Khoảng 0.04958, chỉ là tín hiệu năng lượng, không điểm phát âm |
-| Nghe lại | Người dùng xác nhận có lời nói nghe rõ |
-| Upload | false |
+Lúc 00:20 giờ Việt Nam, chủ dự án ghi và nghe rõ bản WebM/Opus dài **6,78 giây** trên Chrome 138 Windows. Probe chuyển âm thanh sang WAV PCM 16-bit mono 16 kHz và giải mã lại với cùng thời lượng. Bản ghi được xử lý tại trình duyệt, `uploaded = false`.
 
-Đủ bằng chứng smoke test micro desktop sớm cho P0.5 theo ưu tiên của chủ dự án. Không suy ra Chrome stable mới nhất, Edge, Android, Safari, độ dài 60 giây, lời nói trong môi trường ồn hoặc Gemini đã được kiểm thử. Browser matrix mục tiêu vẫn cần kiểm tra ở giai đoạn 6, đặc biệt bản hiện hành và một major trước theo chính sách đã chấp nhận.
+Probe ghi nhận 5 lần TTS bắt đầu với 3 giọng `en-US` trên thiết bị, ở tốc độ `1` và `0.75`. Bốn lần được hủy sau khi bắt đầu. Giọng số 2 phát hết ở tốc độ `0.75` với độ trễ bắt đầu **224 ms**. Kết hợp với lần thử ngày 24/11, đã có hai giọng phát hết và bằng chứng hủy phát trên Chrome Windows. [Metadata lần kiểm tra lại](evidence/chrome-windows-microphone-recheck.json).
+
+## Kiểm thử trình duyệt tự động
+
+Ngày 25/11/2026, Chrome 138 và Edge 158 headless trên Windows đều ghi tone WebM/Opus và giải mã lại WAV PCM 16-bit mono 16 kHz. Đặt quyền micro thành `denied` qua giao thức DevTools rồi gọi `getUserMedia` thu được `NotAllowedError`. Khi phát sự kiện `pagehide`, track tone kết thúc. Mỗi trình duyệt phát hai giọng TTS local ở tốc độ `1` và `0.75`, rồi hủy một lần phát. Hai ca dùng tone tổng hợp và xử lý tại trình duyệt. [Metadata ngày 25/11](evidence/desktop-browser-recheck.json) · [Lần kiểm tra Chrome ban đầu](evidence/clean-build-browser.json).
+
+## Kiểm tra thủ công quyền micro
+
+Theo ca thử Chrome Windows đang theo dõi, chủ dự án ghi nhận trang không thu âm khi chưa cấp quyền micro. Sau khi rời trang, mở probe ở tab khác và cấp quyền, có thể thu âm lại. Kết quả này xác nhận việc thu âm phụ thuộc vào quyền và có thể tiếp tục sau khi cấp quyền ở tab mới.
+
+Để nghiệm thu ca chặn quyền, đặt quyền trang thành **Chặn** và lưu kết quả khi bấm ghi. Để nghiệm thu ca dọn micro, bắt đầu thu rồi điều hướng trong **cùng tab** mà chưa bấm **Dừng ghi**. Quan sát chỉ báo micro tắt trước khi mở hoặc cấp quyền ở tab khác.
+
+## Ma trận nghiệm thu thiết bị thật
+
+| Trình duyệt | Cấp quyền, ghi và nghe lại | Từ chối quyền, rời trang khi đang thu | TTS local |
+| --- | --- | --- | --- |
+| Chrome Windows | Đạt trên Chrome 138, gồm chuyển WAV. Đã ghi nhận chưa cấp quyền thì không thu được và cấp quyền ở tab khác thì thu lại được. | Chờ bằng chứng đặt quyền **Chặn** và quan sát chỉ báo micro tắt khi rời trang đang thu. | Đạt. Hai giọng phát hết qua hai lần thử. Đã thử tốc độ `1`, `0.75` và hủy phát. |
+| Edge Windows | Chờ thử thật | Chờ thử thật | Chờ thử thật |
+| Chrome Android | Chờ thiết bị và URL HTTPS | Chờ thiết bị và URL HTTPS | Chờ thiết bị. Ghi số giọng thực tế. |
 
 ## Chạy lại
-Từ gốc repository:
+
+Từ gốc repo, chạy:
 
 ```powershell
-python -m http.server 8765 --bind 127.0.0.1 --directory experiments/phase0/audio
+python -m http.server 18765 --bind 127.0.0.1 --directory experiments/phase0/audio
 ```
 
-Mở http://127.0.0.1:8765/ bằng Chrome/Edge trên máy tính. Trang chỉ phục vụ thư mục thử nghiệm, không root .env; CSP chặn connect ra ngoài.
-
-1. Bấm kiểm tra âm tổng hợp nếu muốn kiểm tra codec mà chưa cấp micro.
-2. Bấm Bắt đầu ghi âm thật, cấp quyền và đọc câu mẫu không cá nhân.
-3. Dừng, nghe lại và chỉ đánh dấu nghe rõ nếu đúng.
-4. Sao chép JSON metadata nếu cần báo cáo; không cần gửi file audio. Đóng tab/xóa để bỏ bản ghi khỏi bộ nhớ.
-
-Không tự upload; chỉ yêu cầu micro sau thao tác của người dùng. Giới hạn local 60 giây. Dừng server bằng Ctrl+C khi xong. Trang này là công cụ thử riêng, không tích hợp vào giao diện sản phẩm.
-
-## Kết luận codec hiện tại
-WebM/Opus là **candidate desktop có bằng chứng ghi/decode**. MIME provider và khả năng chép lời phải thử riêng khi được phép live; không tự gắn nhãn tương thích end-to-end. Chuẩn bị thêm fixture WAV tổng hợp local cho probe AI, không ép mọi browser phải xuất WAV.
+Mở http://127.0.0.1:18765. Dùng câu hư cấu và kiểm tra nghe rõ, MIME/codec, thời lượng và kết quả chuyển WAV. Đặt lại quyền của trang để thử **Chặn**, rồi cấp lại và rời trang khi đang ghi để kiểm tra chỉ báo micro tắt. Thử hai tốc độ, đổi giọng và hủy TTS nếu có hỗ trợ. Ghi OS, phiên bản trình duyệt, kết quả từ chối quyền và rời trang cùng JSON metadata. Với Android, dùng URL HTTPS có thể truy cập từ điện thoại. [Biên bản và điều kiện thử provider](README.md#các-ca-cần-hoàn-thành-để-nghiệm-thu).

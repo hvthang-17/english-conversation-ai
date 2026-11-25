@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-11-24T16:04:32.651Z",
+  "environment": "Windows 10, HeadlessChrome 138, secure loopback",
+  "synthetic_capture": {
+    "status": "CAPTURED_AND_DECODED",
+    "source": "SYNTHETIC_TONE_NOT_MICROPHONE",
+    "actual_mime": "audio/webm;codecs=opus",
+    "duration_seconds": 1.26,
+    "provider_wav": {
+      "format": "PCM16_MONO_16000",
+      "bytes": 40364,
+      "decoded_seconds": 1.26
+    }
+  },
+  "simulated_permission_denial": "NotAllowedError",
+  "simulated_track_after_pagehide": "ended",
+  "tts_local": {
+    "local_english_voice_count": 3,
+    "attempts": [
+      {"locale": "en-US", "voice_index": 0, "rate": 1, "start_latency_ms": 311, "status": "PLAYED"},
+      {"locale": "en-US", "voice_index": 1, "rate": 0.75, "start_latency_ms": 209, "status": "PLAYED"},
+      {"locale": "en-US", "voice_index": 1, "rate": 0.75, "start_latency_ms": null, "status": "CANCELLED"}
+    ]
+  },
+  "frontend": {"status": "RENDERED", "health_via_vite_http": 200, "health": "UP"},
+  "physical_microphone_retested": false,
+  "remote_provider_requests": 0
+}

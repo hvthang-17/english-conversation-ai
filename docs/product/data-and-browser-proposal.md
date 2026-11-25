@@ -1,13 +1,13 @@
 # Chính sách thời hạn dữ liệu, thông báo và trình duyệt
 
 ## Trạng thái
-Chính sách được chấp nhận tại ADR 0006. Giai đoạn 6 đã triển khai dọn audio và transcript nháp. Lịch xuất backup và purge log AI vẫn thuộc kế hoạch vận hành. Xem [ADR 0006](../decisions/0006-phase0-operating-decisions.md) và [kết quả P6](../development/phase6/README.md).
+Chính sách được chấp nhận tại ADR 0006. G6 đã triển khai dọn audio và transcript nháp. Nhật ký lần gọi Pronunciation Assessment có cleanup 30 ngày. Backup và purge toàn bộ metadata AI vẫn thuộc kế hoạch vận hành. Xem [ADR 0006](../decisions/0006-phase0-operating-decisions.md) và [Kịch bản nghiệm thu hội thoại](../development/chat-acceptance/README.md).
 
 ## 1. Thời hạn giữ dữ liệu
 
 | Dữ liệu | Chính sách đã chốt | Lý do/phạm vi |
 | --- | --- | --- |
-| Audio gốc | Bắt đầu xóa ngay khi chép lời xong, hủy hoặc thất bại không tiếp tục dùng; TTL an toàn tối đa 1 giờ từ upload | Chỉ phục vụ xử lý; không cần giữ để sửa transcript hoặc tiếp tục chat |
+| Audio gốc | Dọn khi hủy, xử lý thất bại hoặc hoàn tất các tác vụ cần audio; hạn an toàn tối đa 1 giờ từ upload | Chỉ phục vụ xử lý; không cần giữ để sửa transcript hoặc tiếp tục chat |
 | Transcript chưa xác nhận | Xóa khi xác nhận/hủy/kết thúc buổi; nếu bỏ dở thì hết hạn sau 30 phút kể từ lúc READY | Người học có thời gian đọc/sửa, không giữ nháp lâu dài |
 | Transcript đã xác nhận | Nội dung cuối nằm trong messages như tin nhắn văn bản; giữ tới khi người học xóa lịch sử | Không nhầm thời hạn nháp với lịch sử đã lưu |
 | Log AI | Giữ metadata của tác vụ/lần gọi 30 ngày sau khi kết thúc; dọn theo lịch hằng ngày | Đủ phục vụ đánh giá độ trễ/lỗi/usage; không chứa prompt/response/audio thô |
@@ -21,7 +21,7 @@ Purge log phải xử lý FK nullable ai_request_id trong turn/audio/feedback v�
 - Cleanup chạy mỗi 5 phút. Trong điều kiện hệ thống bình thường, bản quá hạn được xử lý ở lần quét tiếp theo (tối đa thêm khoảng 5 phút); không hứa xóa đúng từng giây khi máy chủ/provider ngừng hoạt động.
 - Nếu local đã xóa nhưng provider chưa xong, giữ DELETION_PENDING và reference của đích còn lại, retry có theo dõi/cảnh báo; không đánh dấu hoàn tất giả hoặc mất tracking.
 - Gửi yêu cầu xóa file provider ngay khi không cần nếu API có hỗ trợ. Mốc 1 giờ là chính sách storage ứng dụng, không phải cam kết xóa mọi log/backup nội bộ Google.
-- V8 và job P6 dùng hai TTL độc lập. `transcript_expires_at` tính từ READY, `expires_at` tính từ upload. WAV gửi inline và ứng dụng chỉ quản lý file tạm ở backend.
+- G6 dùng hai TTL độc lập. `transcript_expires_at` tính từ READY, `expires_at` tính từ upload. WAV gửi inline và ứng dụng chỉ quản lý file tạm ở backend.
 
 ### Backup và khôi phục
 - Không đưa file audio vào backup. Khi thiết kế bản xuất, loại transcript nháp, file references không còn dùng và dữ liệu phiên đăng nhập; giữ schema và metadata tối thiểu cần để không phá FK. Việc xuất đã lọc cần thiết kế/kiểm thử trước triển khai, không giả định mysqldump mặc định đã làm vậy.
@@ -33,8 +33,8 @@ Purge log phải xử lý FK nullable ai_request_id trong turn/audio/feedback v�
 
 Hiển thị trước lần đầu dùng giọng nói và luôn có liên kết xem lại. Thông báo trong ứng dụng và hộp thoại xin quyền micro là hai việc khác nhau. Chỉ upload khi người học bấm gửi; ghi âm/nghe lại/hủy ở trình duyệt không tự upload.
 
-### Nội dung đã chấp nhận làm cơ sở triển khai
-> Khi bạn gửi bản ghi, âm thanh sẽ được chuyển qua máy chủ của website tới Google Gemini để chuyển thành văn bản. Bạn có thể kiểm tra và sửa bản chép lời trước khi gửi vào hội thoại. Website chỉ giữ âm thanh tạm để xử lý và dọn theo chính sách dữ liệu; bản chép lời đã xác nhận được lưu trong lịch sử đến khi bạn xóa. Việc xử lý và lưu giữ phía Google tuân theo chính sách của dịch vụ được sử dụng. Bạn có thể chọn nhập văn bản thay cho ghi âm.
+### Nội dung thông báo
+> Khi bạn gửi bản ghi, âm thanh sẽ được chuyển qua máy chủ của website tới Google Gemini để chuyển thành văn bản. Bạn có thể kiểm tra và sửa bản chép lời trước khi gửi vào hội thoại. Nếu tính năng chấm phát âm được bật, bản ghi gốc tối đa 30 giây còn hạn được gửi sang Microsoft Azure sau khi xác nhận. Website chỉ giữ âm thanh tạm để xử lý và dọn theo chính sách dữ liệu; bản chép lời đã xác nhận được lưu trong lịch sử đến khi bạn xóa. Việc xử lý và lưu giữ phía Google tuân theo chính sách của dịch vụ được sử dụng. Bạn có thể chọn nhập văn bản thay cho ghi âm.
 
 Hành động đã chọn: **Đã hiểu, tiếp tục** và **Dùng văn bản**. Không gọi đây là quy trình xác nhận pháp lý đầy đủ. Khi triển khai cần gắn mốc thời gian đã chấp nhận và liên kết chính sách thay vì chỉ dùng câu “không lưu lâu dài”.
 
@@ -61,3 +61,15 @@ Ngoài thông báo audio, giải thích rằng nội dung hội thoại văn b�
 - Playwright hỗ trợ kiểm tra UI/HTTP, không thay thế kiểm thử micro, codec và âm thanh trên điện thoại thật. Chưa có kết quả đầy đủ browser matrix này.
 
 Nguồn kỹ thuật: [getUserMedia và secure context](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia), [MediaRecorder.isTypeSupported](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/isTypeSupported_static).
+
+## Chính sách bổ sung — tài khoản và email
+
+Token đặt lại mật khẩu lưu dưới dạng băm. Outbox mã hóa payload chứa liên kết và dọn payload sau khi gửi, hết hạn hoặc hủy. Metadata mail giữ tối đa 30 ngày. Avatar phải bỏ metadata, kiểm tra ảnh và dọn file cũ. Xóa tài khoản thu hồi Session/token, hủy lịch/mail và theo dõi việc dọn dữ liệu cùng file. Backup giữ tối đa 7 ngày và quy trình restore áp lại tombstone. SMTP mặc định tắt. [Đặc tả và phạm vi xử lý dữ liệu](requirements.md).
+
+### Phạm vi xóa và thời hạn dữ liệu bổ sung
+
+Xóa tài khoản bao gồm users, hồ sơ, sở thích, token, lịch/delivery/outbox, mọi buổi và dữ liệu con, thẻ/lịch sử ôn, avatar và audio/file references. Giữ job xóa cùng các reference file trong bảng hiện có cho tới khi hoàn tất; không cascade làm mất reference cần dọn. Luồng đang chạy không được ghi lại dữ liệu sau khi yêu cầu xóa được chấp nhận. Không xóa catalog dùng chung hoặc audit quản trị một cách dây chuyền; gỡ/ẩn danh tham chiếu tài khoản theo chính sách trước khi xóa users.
+
+Thao tác xóa dữ liệu học tập hiện có tiếp tục giữ tài khoản, hồ sơ, avatar và lịch; giải thích phạm vi này trong hộp xác nhận. Chỉ xóa tài khoản mới hủy lịch. Không thêm thao tác xuất dữ liệu hoặc đổi email trong đợt này.
+
+Job xóa xử lý trong lần quét tiếp theo khi hệ thống bình thường, trạng thái PENDING/RETRY/COMPLETED có theo dõi. Không hứa xóa tức thì mọi bản sao provider. Backup giữ tối đa 7 ngày theo chính sách hiện hành; giữ tombstone định danh kỹ thuật tối thiểu đủ áp lại xóa sau restore, không chứa email/nội dung/mật khẩu, dọn sau khi tất cả backup liên quan hết hạn. Delivery/outbox kết thúc giữ metadata tối đa 30 ngày; token hết hạn/đã dùng giữ metadata tối đa 30 ngày và được quét định kỳ; payload nhạy cảm dọn ngay. Avatar cũ được dọn sau thay thành công và retry nếu lỗi. File tạm thất bại/hủy được dọn định kỳ.

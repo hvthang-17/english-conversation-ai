@@ -4,40 +4,31 @@
 - [Tổng quan và phạm vi](product/overview.md)
 - [Yêu cầu và tiêu chí nghiệm thu](product/requirements.md)
 - [Luồng người dùng](product/user-flows.md)
-- [Chính sách retention, thông báo audio và trình duyệt — đã chốt, chưa triển khai](product/data-and-browser-proposal.md)
+- [Chính sách lưu dữ liệu, thông báo âm thanh và trình duyệt](product/data-and-browser-proposal.md)
 
 ## Kiến trúc
 - [Tổng thể](architecture/overview.md)
 - [Backend](architecture/backend.md)
 - [Frontend](architecture/frontend.md)
-- [Cơ sở dữ liệu](architecture/database.md)
-- [Từ điển trường của 20 bảng](architecture/database-dictionary.md)
-- [Workflow dữ liệu và giao dịch](architecture/database-workflows.md)
+- [Thiết kế MySQL 46 bảng, ERD, dữ liệu mẫu và workflow](architecture/database.md)
 - [Gemini và âm thanh](architecture/ai-integration.md)
 
 ## API
 - [Tài khoản và Session](api/auth.md)
 - [Hồ sơ và catalog](api/profile-catalog.md)
-- [Buổi luyện văn bản](api/practice.md)
+- [Học liệu, sổ tay và quiz chọn nghĩa](api/lesson-materials.md)
+- [Luyện nghe và công khai đề](api/listening.md)
+- [Luyện phát âm](api/pronunciation.md)
+- [Hội thoại TEXT/VOICE](api/practice.md) · [Gửi và xác nhận bản ghi](api/voice.md)
 - [Nhận xét cuối buổi](api/feedback.md)
 - [Ôn tập, lịch sử và thống kê](api/learning.md)
 
-- [Rà soát 8 tình huống khởi đầu](product/starter-catalog-review.md)
+- [Phiếu rà nội dung catalog G2](development/acceptance/g2-content-review.md)
 
 ## Phát triển
-- [Kế hoạch thực hiện theo giai đoạn](development/implementation-plan.md)
-- [Giai đoạn 5: ôn tập, lịch sử và thống kê](development/phase5/README.md)
-- [Giai đoạn 4: nhận xét cuối buổi và mẫu rà soát](development/phase4/README.md)
-- [Giai đoạn 3: hội thoại văn bản và gợi ý](development/phase3/README.md)
-- [Giai đoạn 2: hồ sơ, catalog và kiểm thử](development/phase2/README.md)
-- [Giai đoạn 1: kết quả, admin bootstrap và kiểm thử](development/phase1/README.md)
-- [Kết quả và phần còn lại của giai đoạn 0](development/phase0/README.md)
-- [MySQL local](development/phase0/mysql.md), [Gemini/key](development/phase0/gemini.md), [micro/codec](development/phase0/audio.md)
-- [Thiết lập môi trường](development/setup.md)
-- [Agent tooling và skill](development/agents.md)
-- [Quy ước lập trình](development/coding-conventions.md)
-- [Kiểm thử](development/testing.md)
+- [Mục lục phát triển](development/README.md) — thiết lập, quy ước, kế hoạch, kiểm thử và nghiệm thu theo nhóm.
 - [Quy tắc AI tại gốc](../AGENTS.md)
+
 
 ## Quyết định
 - [0001: Kiến trúc và các quyết định đang mở](decisions/0001-system-architecture.md)
@@ -50,6 +41,11 @@
 - [0007: Hiện thực tài khoản, email/hash và thu hồi Session](decisions/0007-auth-implementation.md)
 
 - [0008: Hồ sơ và catalog khởi đầu](decisions/0008-profile-and-catalog.md)
+- [0010: Thống nhất hệ thống giao diện](decisions/0010-interface-design-system.md)
+- [0013: Thay Azure Speech](decisions/0013-replace-azure-speech.md)
+- [0014: Chốt Azure Speech TTS cho G4](decisions/0014-azure-speech-tts-g4.md)
+- [0015: Chốt Azure Pronunciation Assessment cho G5](decisions/0015-azure-pronunciation-assessment-g5.md)
+- [0012: Chốt ERD 46 bảng và phạm vi TTS](decisions/0012-system-database-scope.md)
 
 ## Nghiên cứu và đánh giá
 - [Khảo sát nhu cầu](research/needs-survey.md)

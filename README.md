@@ -6,9 +6,9 @@ Người học A2–B1 luyện tình huống bằng văn bản hoặc ghi âm th
 
 ## Trạng thái
 
-Đã triển khai tài khoản React/Spring Boot với Session JDBC/MySQL: đăng ký, đăng nhập, đổi mật khẩu, đăng xuất, CSRF, admin bootstrap và phân quyền tài khoản nền tảng. Đã có hồ sơ cá nhân và catalog 8 bài A2/B1 theo [giai đoạn 2](docs/development/phase2/README.md), với [API hồ sơ/catalog](docs/api/profile-catalog.md). Flyway V1–V5 tạo 13 bảng; xem [giai đoạn 1](docs/development/phase1/README.md) và [API auth](docs/api/auth.md). Hội thoại văn bản và HINT đã triển khai ở P3. Ôn tập và quản trị catalog thuộc các giai đoạn sau.
+Bản dựng hiện tại mặc định chạy profile `g6` với MySQL local. Profile `bootstrap` kiểm tra tiến trình HTTP, còn `bootstrap,p0-db` tái lập mốc kiểm chứng V1 trên schema riêng của dòng Flyway mới. [Kế hoạch 10 nhóm](docs/development/full-system-implementation-plan.md).
 
-Giai đoạn 0 đã chuẩn bị MySQL 8.4.13 riêng trên localhost:3307 và xác minh Spring Boot kết nối thật; có probe Gemini offline, metadata micro Chrome desktop và tài liệu khảo sát. Giai đoạn 0 chỉ chạy offline. Giai đoạn 3 có bốn mẫu Gemini live với dữ liệu hư cấu. Xem [báo cáo và phần còn lại](docs/development/phase0/README.md).
+P0 đã kiểm chứng MySQL V1, API nền, frontend, audio Chrome Windows, TTS local và probe AI offline. Edge, Android và thử provider thật còn chờ. [Biên bản P0](docs/development/phase0/README.md).
 
 ## Công nghệ
 
@@ -20,25 +20,25 @@ Giai đoạn 0 đã chuẩn bị MySQL 8.4.13 riêng trên localhost:3307 và x�
 
 ## Bắt đầu
 
-- [Giai đoạn 3: cấu hình và chạy hội thoại](docs/development/phase3/README.md)
+- [Kế hoạch G6](docs/development/full-system-implementation-plan.md#g6--luyện-hội-thoại-với-ai)
 
 - [Mục lục tài liệu](docs/index.md)
-- [Kế hoạch thực hiện theo giai đoạn](docs/development/implementation-plan.md)
+- [Kế hoạch triển khai 10 nhóm chức năng](docs/development/full-system-implementation-plan.md)
 - [Giai đoạn 0: kết quả, MySQL, Gemini/key và micro](docs/development/phase0/README.md)
 - [Yêu cầu sản phẩm](docs/product/requirements.md)
 - [Kiến trúc](docs/architecture/overview.md)
 - [ERD và chính sách dữ liệu](docs/architecture/database.md)
-- [Từ điển trường](docs/architecture/database-dictionary.md) và [workflow dữ liệu](docs/architecture/database-workflows.md)
+- [Từ điển 46 bảng](docs/architecture/database.md#3-từ-điển-46-bảng-và-dữ-liệu-mẫu) và [luồng dữ liệu](docs/architecture/database.md#6-luồng-dữ-liệu)
 - [Thiết lập môi trường](docs/development/setup.md)
 - [Hướng dẫn Codex](AGENTS.md)
 - [Danh mục skill](docs/development/agents.md)
 
-## Chạy nhanh không cần database
+## Chạy nhanh G2
 
-Terminal thứ nhất, tại backend:
+Thiết lập kết nối MySQL trong `.env` ở gốc repo. Mở terminal tại `backend/` và chạy:
 
 ```powershell
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=bootstrap"
+mvn spring-boot:run
 ```
 
 Terminal thứ hai, tại frontend, với Node 24 đang hoạt động:
@@ -48,6 +48,6 @@ npm ci
 npm run dev
 ```
 
-Mở http://127.0.0.1:5173. Trang khởi tạo hiển thị kết nối tới backend 8080. Health chỉ kiểm tra HTTP, không kiểm tra MySQL/Gemini. Các API nghiệp vụ mặc định bị chặn.
+Mở http://127.0.0.1:5173 để khám phá bài học, nghe hội thoại mẫu, ôn bằng sổ tay, luyện nghe và luyện phát âm. Maven mặc định chọn profile `g6` và chạy Flyway đến V18. Vào **Tình huống** để luyện hội thoại. [Cấu hình G6](docs/development/acceptance/g6-conversation-acceptance.md). [Cấu hình và nghiệm thu G5](docs/development/acceptance/g5-pronunciation-acceptance.md). Để chạy riêng health mà không kết nối MySQL, dùng `mvn spring-boot:run "-Dspring-boot.run.profiles=bootstrap"`. [Hướng dẫn công khai đề nghe](docs/api/listening.md).
 
 Chi tiết cấu trúc trong [frontend/README.md](frontend/README.md), [backend/README.md](backend/README.md) và cách chạy MySQL trong [setup](docs/development/setup.md).

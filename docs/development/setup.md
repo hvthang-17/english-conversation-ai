@@ -1,14 +1,18 @@
 # Thiết lập môi trường
 
+## SMTP thử nghiệm bằng Mailpit
+
+Khi backend và Mailpit chạy trên cùng máy, dùng `MAIL_ENABLED=true`, `MAIL_HOST=127.0.0.1`, `MAIL_PORT=1025` và `MAIL_STARTTLS=false` cho kết nối loopback local mặc định. Đặt `MAIL_FROM` bằng địa chỉ thử, `APP_PUBLIC_URL` bằng URL frontend local và cấp `MAIL_OUTBOX_KEY` qua môi trường. Mở `http://127.0.0.1:8025` để xem thư thử. Nếu chạy trong container hoặc staging, dùng tên máy của Mailpit trong mạng nội bộ và cấu hình TLS phù hợp. Tắt chuyển tiếp và relay ở môi trường thử. [Cấu hình Mailpit](https://mailpit.axllent.org/docs/configuration/)
+
+Production mặc định tắt gửi thư. Chỉ bật SMTP thật khi môi trường được cấp quyền, cấu hình sender, secret và TLS đã được xác minh.
+
 ## Hiện trạng và công cụ
 
-Đã có frontend/backend, Maven Wrapper, npm lockfile, AUTH-01/Session JDBC, PROFILE-01/SCENARIO-01 và 8 bảng qua Flyway V1–V4. Chưa có hội thoại hoặc Gemini runtime client. Hướng dẫn auth/admin/test tại [giai đoạn 1](phase1/README.md).
+Lệnh Maven `spring-boot:run` mặc định chọn profile `g6`, chạy Flyway tới V19. Dùng profile `bootstrap` khi cần kiểm tra health độc lập với MySQL. [Bằng chứng P0](phase0/README.md).
 
 - JDK 21 và JAVA_HOME tương ứng; không cần cài Maven global vì có wrapper.
 - Node 24.19+ trong nhánh 24 và npm. frontend/.nvmrc ghi bản nền 24.19.0.
 - Docker Compose để chạy MySQL hoặc MySQL 8.4 được quản lý riêng.
-
-Giai đoạn 0 đã chuẩn bị **MySQL 8.4.13 portable tại 127.0.0.1:3307**, .env local và script start/verify/stop; backend đã kết nối thật; giai đoạn 1–2 bổ sung 8 bảng tài khoản/Session/hồ sơ/catalog. Xem [MySQL phase0](phase0/mysql.md). Không sửa dịch vụ MySQL 9.2 trên máy; hướng dẫn Compose bên dưới vẫn là phương án cho máy có Docker.
 
 Máy thiết lập có Node 24.19.0 trong nvm nhưng chưa kích hoạt mặc định; cần chọn bản Node tương ứng bằng công cụ quản lý phiên bản của bạn trước khi dùng npm/VSCode tasks. Việc xác minh dùng PATH chỉ trong tiến trình, không đổi cấu hình global.
 
@@ -33,28 +37,31 @@ Mở http://127.0.0.1:5173. Vite proxy /api tới backend 8080. GET /api/v1/syst
 
 ## Chạy với MySQL
 
-Tại gốc repository, sao chép .env.example thành .env nếu chưa có, đặt MYSQL_PASSWORD và MYSQL_ROOT_PASSWORD riêng cho local. Không commit .env.
+### Đích MySQL cho bản dựng sạch
 
-```powershell
-docker compose --env-file .env -f infrastructure/compose.yaml up -d mysql
-```
+Profile `p0-db` trỏ tới MySQL `127.0.0.1:3306/english_conversation`. Ngày 25/11/2026 đã xác nhận V1 chạy trên đích này và restart giữ đúng lịch sử Flyway. [Quyết định đích MySQL](../decisions/0012-system-database-scope.md#đích-mysql-phát-triển-cho-p02) · [Kết quả kiểm tra](phase0/mysql.md).
 
-Compose chỉ chạy MySQL, bind localhost và giữ dữ liệu trong named volume. Đổi mật khẩu trong .env sau khi volume đã khởi tạo không tự đổi mật khẩu tài khoản MySQL; phải thực hiện thay đổi tại database, không tự xóa volume chứa dữ liệu.
+1. Kết nối đúng host và cổng. Kiểm tra `SELECT @@hostname, @@port, @@server_uuid, DATABASE();`, danh sách bảng và lịch sử Flyway.
+2. Chỉ chạy dòng mới khi schema rỗng hoặc đã có đúng lịch sử migration mới. Nếu còn bảng và lịch sử cũ, xác nhận riêng đích, phạm vi và cách xử lý dữ liệu trước khi dọn. Flyway vẫn kiểm tra checksum và tắt `clean` cùng `baseline-on-migrate`.
+3. Sau khi schema sẵn sàng, khởi động backend và kiểm tra `english_conversation.flyway_schema_history` ghi `V1__users_and_learner_profiles.sql`. Khởi động lại để xác nhận Flyway không áp lại V1.
 
-Trong terminal backend, export cấu hình rồi chạy không có profile bootstrap:
+Để chạy bản dựng P0 có MySQL, cấp `P0_DB_USERNAME` và `P0_DB_PASSWORD` cho tài khoản phát triển có quyền trên `english_conversation`. Tại `backend/`, chạy `./mvnw.cmd clean spring-boot:run "-Dspring-boot.run.profiles=bootstrap,p0-db"`. Hai profile theo thứ tự này chạy Flyway từ `db/migration` và phục vụ health. Khi schema đã sẵn sàng, kiểm thử từ thư mục gốc bằng `./scripts/phase0/test-clean-db.ps1`.
 
-```powershell
-$env:SPRING_DATASOURCE_URL = 'jdbc:mysql://localhost:3306/english_conversation?connectionTimeZone=UTC'
-$env:SPRING_DATASOURCE_USERNAME = 'english_app'
-$env:SPRING_DATASOURCE_PASSWORD = '<giá trị MYSQL_PASSWORD đã chọn>'
-.\mvnw.cmd spring-boot:run
-```
-
-Nếu đổi MYSQL_DATABASE, MYSQL_USER hoặc MYSQL_PORT, đổi biến datasource tương ứng. Backend tự đọc root .env khi chạy từ backend/; Compose chỉ dùng các biến MYSQL_* của file đó. JPA dùng validate, Flyway bật; default profile áp V1 users/V2 Session/V3 hồ sơ-catalog/V4 seed tám bài. Các bảng hội thoại/ôn tập chưa triển khai.
-
-ERD gồm 20 bảng (18 ứng dụng + 2 Spring Session JDBC) tại [database](../architecture/database.md), với [dictionary](../architecture/database-dictionary.md) và [workflow](../architecture/database-workflows.md). Session theo ADR 0004/0007 đã chạy JDBC 4.1.1, V2 lấy schema từ JAR, auto-initialize=never. 8 bảng được triển khai; không chạy DDL 12 bảng còn lại theo phỏng đoán.
+Có thể dùng Compose để cấp MySQL local. Kiểm tra biến cấu hình đích trước khi chạy và tránh khởi động trùng cổng với MySQL đang dùng.
 
 ## Cấu hình frontend và AI
+
+### Chạy tài khoản, hồ sơ và catalog
+
+Tạo schema MySQL phát triển rỗng lần đầu, hoặc dùng `english_conversation` đã áp V1 của dòng mới. Đặt `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` và `SPRING_DATASOURCE_PASSWORD` trong `.env` hoặc môi trường. Tại `backend/`, chạy:
+
+```powershell
+mvn spring-boot:run
+```
+
+Flyway áp V11–V19 khi schema có V10. Từ V15, Flyway áp V16–V17 cho luyện hội thoại. Chạy `npm run dev` tại `frontend/`, mở URL Vite rồi vào chi tiết bài cho học liệu G3 và đề luyện nghe G4. Vào **Tình huống** để luyện hội thoại hoặc **Luyện phát âm** để đọc theo mẫu. Xem [cấu hình và nghiệm thu G5](acceptance/g5-pronunciation-acceptance.md). Dùng schema riêng khi tái lập `g1`, `g2` hoặc `g3`. Để thử liên kết khôi phục, dùng [cấu hình Mailpit](#smtp-thử-nghiệm-bằng-mailpit) và đặt `APP_PUBLIC_URL` trùng URL frontend đang mở. Tùy chọn nhắc học được lưu từ G1. Worker gửi nhắc thuộc G8. [API học liệu và sổ tay](../api/lesson-materials.md).
+
+Đề nghe mới ở trạng thái nháp. Để gọi Azure F0 khi công khai, điền `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, bật `LISTENING_AZURE_ENABLED=true` rồi chạy lại backend. Đăng nhập bằng ADMIN, mở **Luyện nghe → Công khai đề nghe** và xác nhận từng đề. Giữ `LISTENING_AUDIO_DIRECTORY` ở ổ lưu trữ riêng của backend. [API luyện nghe và công khai đề](../api/listening.md).
 
 Frontend mặc định VITE_API_BASE_URL=/api/v1 và DEV_API_TARGET=http://localhost:8080; có thể dùng frontend/.env.local từ [mẫu](../../frontend/.env.example). VITE_* là công khai; không chứa key. Preview 4173 không có dev proxy; production cần reverse proxy hoặc URL API cùng chính sách CORS phù hợp.
 

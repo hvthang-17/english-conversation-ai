@@ -1,0 +1,84 @@
+{
+  "recorded_at": "2026-11-24T17:20:11.633Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+  "secure_context": true,
+  "media_recorder": true,
+  "get_user_media": true,
+  "supported_types": [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4"
+  ],
+  "synthetic": {
+    "status": "CAPTURED_AND_DECODED",
+    "source": "SYNTHETIC_TONE_NOT_MICROPHONE",
+    "actual_mime": "audio/webm;codecs=opus",
+    "bytes": 27209,
+    "elapsed_ms": 1813,
+    "duration_seconds": 1.68,
+    "sample_rate": 48000,
+    "rms": 0.7037167733936606,
+    "provider_wav": {
+      "bytes": 53804,
+      "format": "PCM16_MONO_16000",
+      "decoded_seconds": 1.68
+    }
+  },
+  "microphone": {
+    "status": "CAPTURED_AND_DECODED",
+    "source": "PHYSICAL_MICROPHONE",
+    "actual_mime": "audio/webm;codecs=opus",
+    "bytes": 109319,
+    "elapsed_ms": 6926,
+    "duration_seconds": 6.78,
+    "sample_rate": 48000,
+    "rms": 0.06209347643024991,
+    "provider_wav": {
+      "bytes": 217004,
+      "format": "PCM16_MONO_16000",
+      "decoded_seconds": 6.78
+    },
+    "user_heard_clear_speech": true
+  },
+  "uploaded": false,
+  "tts": {
+    "local_english_voice_count": 3,
+    "attempts": [
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 695,
+        "status": "CANCELLED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 1,
+        "start_latency_ms": 188,
+        "status": "CANCELLED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 0,
+        "rate": 0.75,
+        "start_latency_ms": 193,
+        "status": "CANCELLED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 1,
+        "rate": 0.75,
+        "start_latency_ms": 242,
+        "status": "CANCELLED"
+      },
+      {
+        "locale": "en-US",
+        "voice_index": 2,
+        "rate": 0.75,
+        "start_latency_ms": 224,
+        "status": "PLAYED"
+      }
+    ]
+  }
+}
