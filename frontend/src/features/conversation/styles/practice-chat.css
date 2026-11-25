@@ -1,0 +1,70 @@
+.practice-chat { width: 100%; max-width: 960px; min-width: 0; margin-inline: auto; }
+.practice-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+.practice-turn-count { color: var(--text-muted); font-size: .875rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+.practice-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.practice-context { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px 24px; min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); }
+.practice-context h2 { grid-column: 1 / -1; font-size: 1rem; line-height: 1.5; margin: 0; }
+.practice-roles { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.practice-roles dt { color: var(--text-muted); font-size: .875rem; margin-bottom: 4px; }
+.practice-roles dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.practice-goal { margin: 0; padding-left: 24px; border-left: 1px solid var(--border); }
+.practice-goal h3 { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin-bottom: 8px; }
+.practice-goal .icon { color: var(--primary); }
+.practice-goal p { font-size: .875rem; margin: 0; }
+.practice-context details { grid-column: 1 / -1; margin: 0; padding-top: 8px; border-top: 1px solid var(--border); font-size: .875rem; }
+.practice-context summary, .pronunciation-details summary { min-height: 44px; padding-block: 10px; cursor: pointer; color: var(--primary); }
+.practice-context details p { color: var(--text-muted); margin: 8px 0 0; }
+.practice-main { min-width: 0; }
+.practice-transcript { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 20px; }
+.practice-transcript > li { min-width: 0; padding: 16px 20px; border: 1px solid var(--border); border-radius: var(--radius-panel); max-width: min(92%, 70ch); overflow-wrap: anywhere; }
+.practice-transcript > .practice-assistant { background: var(--surface); justify-self: start; border-bottom-left-radius: 4px; }
+.practice-transcript > .practice-learner { background: var(--primary-soft); justify-self: end; border-color: var(--primary-soft); border-bottom-right-radius: 4px; }
+.practice-transcript p { margin: 8px 0 0; white-space: pre-wrap; }
+.practice-speaker { font-size: .875rem; color: var(--text-muted); }
+.practice-message-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.practice-message-heading > span { color: var(--text-muted); font-size: .875rem; }
+.practice-listen-instruction { color: var(--text-muted); font-size: .875rem; }
+.practice-transcript .voice-playback { gap: 8px; margin: 16px 0 0; }
+.practice-caption { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 8px; }
+.practice-processing { color: var(--primary); padding: 16px; background: var(--primary-soft); border-radius: var(--radius-control); }
+.practice-hint > strong { display: flex; align-items: center; gap: 8px; }
+.practice-composer { padding: 20px; background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius-panel); }
+.practice-composer .form-field { margin-bottom: 12px; }
+.practice-composer textarea { min-height: 96px; }
+.practice-composer .actions { margin: 0; }
+.practice-session-actions { padding-top: 16px; border-top: 1px solid var(--border); margin-top: 24px; }
+.practice-keyboard { margin-block: 16px; }
+.practice-new-line:empty { margin: 0; }
+.practice-new-line:not(:empty) { color: var(--primary); font-size: .875rem; }
+.practice-chat > .session-feedback { width: 100%; max-width: none; margin-left: 0; }
+.pronunciation-details { margin-top: 12px; font-size: .875rem; }
+.pronunciation-details ol { padding-left: 20px; margin: 8px 0 0; }
+.pronunciation-details ol li { padding-block: 8px; }
+.message-explanation { margin-top: 16px; }
+.message-explanation > button { padding-inline: 0; }
+.message-explanation-panel { padding: 16px; margin-top: 12px; border-top: 1px solid var(--border); background: var(--surface-muted); border-radius: var(--radius-control); }
+.message-explanation-panel button { margin-top: 12px; }
+.voice-turn { padding: 20px; background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius-panel); }
+.voice-turn h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 1.125rem; }
+.voice-turn h3 .icon { color: var(--primary); }
+.voice-turn audio { display: block; width: 100%; max-width: 100%; margin: 20px 0 16px; }
+.voice-turn textarea { width: 100%; }
+.voice-turn .actions { gap: 8px; margin-block: 16px 0; }
+.voice-privacy { margin-bottom: 16px; padding: 12px 16px; background: var(--surface-muted); border-radius: var(--radius-control); font-size: .875rem; }
+.voice-privacy summary { cursor: pointer; min-height: 44px; padding-block: 10px; color: var(--primary); font-weight: 600; }
+.voice-privacy p { color: var(--text-muted); margin: 12px 0 0; }
+.voice-turn > p { font-size: .875rem; margin: 16px 0 0; }
+.voice-turn > p:not([role="alert"]) { color: var(--text-muted); }
+.voice-turn .voice-timer { font-variant-numeric: tabular-nums; color: var(--danger); padding: 8px 12px; background: var(--danger-soft); border-radius: var(--radius-control); font-size: .875rem; }
+.voice-confirmation { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+@media (max-width: 767px) {
+  .practice-turn-count { margin-left: 0; }
+  .practice-context, .practice-composer, .voice-turn { padding: 20px 16px; }
+  .practice-transcript > li { max-width: 96%; padding: 16px; }
+  .practice-transcript { gap: 16px; }
+  .practice-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .practice-context { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .practice-goal { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--border); }
+  .practice-composer .actions > .button-primary { width: 100%; }
+  .voice-privacy { padding: 8px 12px; }
+}

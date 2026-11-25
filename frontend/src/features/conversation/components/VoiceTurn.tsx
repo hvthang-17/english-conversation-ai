@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from '../../../shared/ui/Icon'
 import { ApiError, getJson, mutateForm, mutateJson } from '../../../shared/api/client'
-import { maxRecordingSeconds, recordingType, toWave } from './wave'
+import { maxRecordingSeconds, recordingType, toWave } from '../../../shared/lib/audio/recording'
 
 type Draft = {
   id: string; status: 'TRANSCRIBING' | 'READY' | 'CONFIRMED' | 'FAILED' | 'EXPIRED'
+  durationMillis: number
   transcript: string | null; expiresAt: string | null; errorCode: string | null
   retryable: boolean; unknown: boolean; retryAt: string | null
 }
@@ -37,8 +39,8 @@ function release(capture: Capture) {
   capture.stream.getTracks().forEach(track => track.stop())
 }
 
-export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, onBusy, onRecording, onCapture, onUseKeyboard }: {
-  sessionId: string; disabled: boolean; onConfirmed: (value: unknown) => void
+export function VoiceTurn({ sessionId, disabled, pronunciationAvailable, onConfirmed, onSessionExpired, onBusy, onRecording, onCapture, onUseKeyboard }: {
+  sessionId: string; disabled: boolean; pronunciationAvailable: boolean; onConfirmed: (value: unknown) => void
   onSessionExpired: () => void; onBusy: (busy: boolean) => void; onRecording: () => void
   onCapture: (capturing: boolean) => void; onUseKeyboard: () => void
 }) {
@@ -51,6 +53,8 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [poll, setPoll] = useState(0)
+  const [restoreAttempt, setRestoreAttempt] = useState(0)
+  const [restore, setRestore] = useState<{ attempt: number; error?: string } | null>(null)
   const capture = useRef<Capture | null>(null)
   const generation = useRef(0)
   const operation = useRef<AbortController | null>(null)
@@ -58,6 +62,8 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   const playback = useRef<HTMLAudioElement | null>(null)
   const codec = recordingType()
   const path = `practice-sessions/${sessionId}/audio`
+  const restoring = restore?.attempt !== restoreAttempt
+  const restoreError = !restoring && restore?.error
 
   useEffect(() => () => {
     generation.current++
@@ -71,6 +77,28 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   useEffect(() => () => {
     if (recording) URL.revokeObjectURL(recording.url)
   }, [recording])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    async function recover() {
+      try {
+        const value = await getJson(path, controller.signal)
+        if (controller.signal.aborted) return
+        if (value !== undefined) {
+          const next = parseDraft(value)
+          setDraft(next)
+          setTranscript(next.transcript ?? '')
+        }
+        setRestore({ attempt: restoreAttempt })
+      } catch (failure) {
+        if (controller.signal.aborted) return
+        if (failure instanceof ApiError && failure.status === 401) onSessionExpired()
+        else setRestore({ attempt: restoreAttempt, error: 'Chưa thể kiểm tra bản chép lời đang chờ.' })
+      }
+    }
+    void recover()
+    return () => controller.abort()
+  }, [path, restoreAttempt, onSessionExpired])
 
   const processingId = draft?.status === 'TRANSCRIBING' ? draft.id : null
   useEffect(() => {
@@ -123,7 +151,7 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   }
 
   async function start() {
-    if (!codec || !noticeAcceptedAt || mode !== 'idle') return
+    if (!codec || !noticeAcceptedAt || mode !== 'idle' || restoring || restoreError) return
     clear()
     const version = generation.current
     setError(''); setMode('permission')
@@ -211,7 +239,10 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   function confirm() {
     if (!draft || !transcript.trim()) return
     return act('Đang gửi bản chép lời và chờ AI…', async signal => {
-      const next = await mutateJson(`${path}/${draft.id}/confirm`, { content: transcript.trim() }, 'POST', signal)
+      const next = await mutateJson(`${path}/${draft.id}/confirm`, {
+        content: transcript.trim(),
+        assessPronunciation: pronunciationAvailable && draft.durationMillis <= 30_000,
+      }, 'POST', signal)
       if (!signal.aborted) { onConfirmed(next); clear() }
     })
   }
@@ -228,43 +259,55 @@ export function VoiceTurn({ sessionId, disabled, onConfirmed, onSessionExpired, 
   }
 
   return <section className="voice-turn" aria-labelledby="voice-title">
-    <h3 id="voice-title">Trả lời bằng giọng nói</h3>
-    <details open={!noticeAcceptedAt}>
+    <h3 id="voice-title"><Icon name="microphone" />Trả lời bằng giọng nói</h3>
+    {restoring ? <p role="status">Đang kiểm tra bản chép lời đang chờ…</p> : null}
+    {restoreError ? <div>
+      <p role="alert">{restoreError}</p>
+      <button type="button" onClick={() => setRestoreAttempt(n => n + 1)}>Thử tải lại bản chép lời</button>
+    </div> : null}
+    <details className="voice-privacy" open={!noticeAcceptedAt}>
       <summary>Thông báo xử lý âm thanh</summary>
       <p>Khi bấm gửi bản ghi, máy chủ chuyển âm thanh đến Google Gemini để chép lời.
         Âm thanh gốc được xóa sau khi xử lý, với thời hạn dọn an toàn 1 giờ. Bản chép lời nháp
         hết hạn sau 30 phút. Bản đã xác nhận được lưu trong lịch sử đến khi bạn xóa buổi luyện.
         Nội dung gõ cũng được gửi đến Gemini khi bạn gửi câu.</p>
+      {pronunciationAvailable ? <p>Sau khi bạn xác nhận bản chép lời, Microsoft Azure sẽ tự chấm
+        phát âm từ bản ghi gốc dài tối đa 30 giây nếu tệp còn hạn.</p> : null}
       <p><a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">Điều khoản dữ liệu của Gemini</a></p>
       {!noticeAcceptedAt && codec ? <div className="actions">
-        <button type="button" onClick={() => acceptNotice(Date.now())}>Đã hiểu, tiếp tục</button>
+        <button className="button-primary" type="button" onClick={() => acceptNotice(Date.now())}>Đã hiểu, tiếp tục</button>
         <button type="button" onClick={onUseKeyboard}>Dùng văn bản</button>
       </div> : null}
     </details>
     {!codec ? <p>Trình duyệt hoặc kết nối hiện tại chưa hỗ trợ ghi âm. Bạn vẫn có thể nhập văn bản.</p> : null}
-    {noticeAcceptedAt && !recording && !draft ? <div className="actions">
-      {mode === 'idle' ? <button type="button" disabled={disabled} onClick={() => void start()}>Ghi câu trả lời</button> : null}
-      {mode === 'recording' ? <button type="button" onClick={stop}>Dừng ghi âm</button> : null}
+    {noticeAcceptedAt && !restoring && !restoreError && !recording && !draft ? <div className="actions">
+      {mode === 'idle' ? <button className="button-primary" type="button" disabled={disabled} onClick={() => void start()}><Icon name="microphone" />Ghi câu trả lời</button> : null}
+      {mode === 'recording' ? <button className="button-danger" type="button" onClick={stop}><Icon name="close" size={20} />Dừng ghi âm</button> : null}
       {mode !== 'idle' ? <button type="button" onClick={() => { clear(); setError('') }}>Hủy ghi âm</button> : null}
-      {mode === 'recording' ? <span aria-label={`Đã ghi ${seconds} giây`}>{seconds} / {maxRecordingSeconds} giây</span> : null}
+      {mode === 'recording' ? <span className="voice-timer" role="timer" aria-live="off" aria-label={`Đã ghi ${seconds} giây`}>{seconds} / {maxRecordingSeconds} giây</span> : null}
       {mode === 'permission' ? <span role="status">Đang chờ quyền micro…</span> : null}
     </div> : null}
     {noticeAcceptedAt && mode === 'idle' && !recording && !draft ? <p>Tối đa 60 giây mỗi bản ghi.</p> : null}
     {recording && !draft ? <>
       <audio ref={playback} controls src={recording.url} aria-label="Nghe lại bản ghi" />
       <div className="actions">
-        <button type="button" disabled={disabled || Boolean(status)} onClick={() => void upload()}>Gửi bản ghi để chép lời</button>
+        <button className="button-primary" type="button" disabled={disabled || Boolean(status)} onClick={() => void upload()}><Icon name="send" size={20} />Gửi bản ghi để chép lời</button>
         <button type="button" disabled={Boolean(status)} onClick={() => void discard()}>Bỏ bản ghi</button>
       </div>
     </> : null}
     {draft?.status === 'TRANSCRIBING' ? <p role="status">Gemini đang chép lời…</p> : null}
     {draft?.status === 'TRANSCRIBING' && error ? <button type="button" onClick={() => { setError(''); setPoll(n => n + 1) }}>Tải lại trạng thái bản ghi</button> : null}
-    {draft?.status === 'READY' ? <div className="form-field">
+    {draft?.status === 'READY' ? <div className="form-field voice-confirmation">
+      {pronunciationAvailable ? <small>{draft.durationMillis <= 30_000
+        ? 'Azure sẽ tự chấm phát âm từ bản ghi gốc sau khi xác nhận nếu tệp còn hạn.'
+        : 'Bản ghi dài hơn 30 giây chỉ tiếp tục hội thoại.'}</small> : null}
       <label htmlFor="voice-transcript">Kiểm tra và sửa bản chép lời</label>
+      <small id="voice-transcript-draft-note">Phần bạn sửa chưa được lưu cho đến khi xác nhận. Nếu tải lại, bản chép lời gốc sẽ được khôi phục khi còn hạn.</small>
       <textarea id="voice-transcript" lang="en" rows={3} maxLength={1000} value={transcript}
+        aria-describedby="voice-transcript-draft-note"
         disabled={Boolean(status)} onChange={event => setTranscript(event.target.value)} />
       <div className="actions">
-        <button type="button" disabled={disabled || Boolean(status) || !transcript.trim()} onClick={() => void confirm()}>Xác nhận và gửi vào hội thoại</button>
+        <button className="button-primary" type="button" disabled={disabled || Boolean(status) || !transcript.trim()} onClick={() => void confirm()}><Icon name="check" size={20} />Xác nhận và gửi vào hội thoại</button>
         <button type="button" disabled={Boolean(status)} onClick={() => void discard()}>Hủy bản chép lời</button>
       </div>
     </div> : null}

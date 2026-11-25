@@ -1,0 +1,12 @@
+@import '../../../shared/styles/learning-content.css';
+
+.flashcard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.flashcard-grid > li { margin: 0; }
+.flashcard h2 { font-size: 1.5rem; margin: 24px 0; color: var(--text); line-height: 1.5; text-wrap: wrap; }
+.flashcard .status-badge { margin-bottom: 0; }
+.flashcard-answer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px; }
+.flashcard-answer > p[lang="en"] { color: var(--text-muted); }
+.flashcard .actions { margin-bottom: 0; }
+@media (max-width: 767px) {
+  .flashcard-grid { grid-template-columns: 1fr; }
+}

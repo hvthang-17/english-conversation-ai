@@ -1,0 +1,66 @@
+.pronunciation-screen { max-width: 1160px; overflow-wrap: anywhere; }
+.pronunciation-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 24px; align-items: start; }
+.pronunciation-main { display: grid; gap: 24px; min-width: 0; }
+.pronunciation-picker, .pronunciation-practice, .pronunciation-result, .pronunciation-history { min-width: 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); }
+.pronunciation-screen h2 { font-size: 1.25rem; margin: 0 0 12px; }
+.pronunciation-picker-label { display: grid; gap: 12px; font-weight: 600; font-size: .875rem; }
+.pronunciation-picker-label select { min-width: 0; max-width: 100%; font-size: 1rem; font-weight: 400; }
+.pronunciation-screen .pronunciation-help { color: var(--text-muted); font-size: .875rem; line-height: 1.65; margin: 12px 0 0; }
+.pronunciation-drill-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; font-size: .875rem; color: var(--text-muted); }
+.pronunciation-practice > p { color: var(--text-muted); }
+.pronunciation-sample { margin: 24px 0 20px; padding: 24px; border-left: 3px solid var(--primary); background: var(--primary-soft); border-radius: 0 8px 8px 0; font-size: clamp(1.25rem, 2vw, 1.5rem); line-height: 1.65; }
+.pronunciation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.pronunciation-sample-lines { padding-left: 24px; margin-block: 24px; }
+.pronunciation-sample-lines li { padding: 8px 0; }
+.pronunciation-sample-lines button { margin: 8px 0 0 8px; }
+.pronunciation-line-details { margin-top: 16px; }
+.pronunciation-line-details summary { min-height: 44px; padding-block: 10px; color: var(--primary); font-size: .875rem; font-weight: 600; cursor: pointer; }
+.pronunciation-recording-area { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+.pronunciation-recording-area h3 { display: flex; align-items: center; gap: 8px; }
+.pronunciation-recording-area h3 .icon { color: var(--primary); }
+.pronunciation-recording-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 16px 0; padding: 12px 16px; background: var(--danger-soft); border: 1px solid var(--danger); border-radius: var(--radius-control); color: var(--danger); font-weight: 600; }
+.pronunciation-recording-status [role="timer"] { font-variant-numeric: tabular-nums; }
+.pronunciation-preview { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.pronunciation-preview > p:first-child { font-weight: 600; }
+.pronunciation-preview audio { display: block; width: 100%; max-width: 100%; margin-bottom: 16px; }
+.pronunciation-preview > p:not(:first-child) { color: var(--text-muted); font-size: .875rem; }
+.pronunciation-section-heading { display: flex; align-items: center; gap: 8px; }
+.pronunciation-section-heading .icon { color: var(--primary); }
+.pronunciation-section-heading h2 { margin: 0; }
+.pronunciation-history-list { list-style: none; margin: 20px 0; padding: 0; display: grid; gap: 8px; }
+.pronunciation-history-list button { display: grid; gap: 8px; width: 100%; text-align: left; justify-content: stretch; padding: 12px; background: var(--surface); border-color: var(--border); color: var(--text); }
+.pronunciation-history-list button[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); }
+.pronunciation-history-list small { font-size: .875rem; font-weight: 400; line-height: 1.6; color: var(--text-muted); }
+.pronunciation-history-empty { padding-block: 24px; margin: 0; color: var(--text-muted); font-size: .875rem; }
+.pronunciation-pagination { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.pronunciation-scores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 24px 0; gap: 0 24px; }
+.pronunciation-scores > div { padding-block: 16px; border-bottom: 1px solid var(--border); }
+.pronunciation-scores dt { font-size: .875rem; color: var(--text-muted); }
+.pronunciation-scores dd { margin: 8px 0 0; font-size: 1.5rem; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.pronunciation-words { list-style: none; padding: 0; margin: 24px 0 0; }
+.pronunciation-words > li { padding-block: 20px; border-top: 1px solid var(--border); }
+.pronunciation-word-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.pronunciation-word-heading > strong { font-size: 1.125rem; }
+.pronunciation-word-score { margin-left: auto; color: var(--text-muted); font-size: .875rem; }
+.pronunciation-words p { color: var(--text-muted); font-size: .875rem; margin: 12px 0 0; }
+.pronunciation-result-text { margin-block: 20px; }
+.pronunciation-result-text h3 { margin: 0 0 8px; font-size: .875rem; color: var(--text-muted); }
+.pronunciation-result-text p { margin: 0; }
+@media (min-width: 1200px) and (max-height: 800px) {
+  .pronunciation-screen .page-heading { margin-bottom: 24px; }
+  .pronunciation-main { gap: 16px; }
+  .pronunciation-picker, .pronunciation-practice { padding: 16px 20px; }
+  .pronunciation-drill-meta { margin-bottom: 8px; }
+  .pronunciation-sample { margin-block: 16px; padding: 16px; font-size: 1.25rem; }
+  .pronunciation-recording-area { margin-top: 16px; padding-top: 16px; }
+}
+@media (max-width: 1199px) {
+  .pronunciation-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+  .pronunciation-picker, .pronunciation-practice, .pronunciation-result, .pronunciation-history { padding: 20px 16px; }
+  .pronunciation-sample { padding: 16px; }
+  .pronunciation-actions button { flex: 1 1 auto; }
+  .pronunciation-scores { gap: 0 16px; }
+  .pronunciation-scores dd { font-size: 1.25rem; }
+}

@@ -2,7 +2,8 @@ import { getJson } from '../../../shared/api/client'
 import { isLevel, type Level } from '../../../shared/lib/learning-level'
 export type Topic = { id: string; code: string; name: string; description: string | null }
 export type Scenario = { id: string; code: string; topicId: string; topicName: string; title: string; description: string; levels: Level[] }
-export type ScenarioDetail = Scenario & { learnerRole: string; aiRole: string; communicationGoal: string; contextDescription: string }
+export type ScenarioRole = { code: string; learnerRole: string; aiRole: string; communicationGoal: string; contextDescription: string }
+export type ScenarioDetail = Scenario & Omit<ScenarioRole, 'code'> & { roles: ScenarioRole[] }
 export type ScenarioPage = { content: Scenario[]; page: number; size: number; totalElements: number }
 function isObject(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null }
 function scenario(value: unknown): Scenario {
@@ -23,6 +24,14 @@ export async function getScenarios(level: Level, topicId: string, page: number, 
 export async function getScenario(id: string, level: Level, signal?: AbortSignal): Promise<ScenarioDetail> {
   const value = await getJson(`scenarios/${encodeURIComponent(id)}?level=${level}`, signal)
   scenario(value)
-  if (!isObject(value) || !['learnerRole', 'aiRole', 'communicationGoal', 'contextDescription'].every(key => typeof value[key] === 'string')) throw new Error('Dữ liệu chi tiết không hợp lệ.')
-  return value as ScenarioDetail
+  const fields = ['learnerRole', 'aiRole', 'communicationGoal', 'contextDescription']
+  if (!isObject(value) || !fields.every(key => typeof value[key] === 'string')) throw new Error('Dữ liệu chi tiết không hợp lệ.')
+  if (value.roles !== undefined && (!Array.isArray(value.roles) || !value.roles.every(role =>
+    isObject(role) && ['code', ...fields].every(key => typeof role[key] === 'string'))))
+    throw new Error('Danh sách vai giao tiếp không hợp lệ.')
+  const detail = value as ScenarioDetail
+  return { ...detail, roles: detail.roles ?? [{
+    code: 'DEFAULT', learnerRole: detail.learnerRole, aiRole: detail.aiRole,
+    communicationGoal: detail.communicationGoal, contextDescription: detail.contextDescription,
+  }] }
 }

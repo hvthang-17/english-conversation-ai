@@ -1,0 +1,56 @@
+@import '../../../shared/styles/learning-content.css';
+
+.notebook, .learning-data-page { min-width: 0; max-width: 1160px; }
+.data-management { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border); }
+.data-management h2 { font-size: 1.125rem; }
+.data-management p { color: var(--text-muted); font-size: .875rem; }
+.notebook-list { display: grid; gap: 0.75rem; padding: 0; list-style: none; }
+.notebook-quiz label { display: flex; align-items: center; gap: 0.5rem; }
+.notebook-quiz, .notebook-history { margin-top: 1rem; }
+.notebook-quiz fieldset { min-inline-size: 0; margin: 0; padding: 0.75rem; border: 1px solid var(--border, #dce4ec); border-radius: 0.5rem; }
+.notebook-quiz label { min-height: 2.75rem; }
+.notebook .notebook-list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 24px; margin: 0; }
+.notebook-entry { min-width: 0; padding: 24px; }
+.notebook-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notebook-kind { color: var(--text-muted); font-size: .875rem; }
+.notebook-entry h2 { margin: 24px 0; font-size: 1.5rem; line-height: 1.5; text-wrap: wrap; }
+.notebook-entry .material-controls { gap: 8px; }
+.notebook-answer { margin-top: 24px; padding: 20px; background: var(--primary-soft); border-radius: var(--radius-control); }
+.notebook-answer > p { margin-bottom: 12px; }
+.notebook-answer .material-controls { margin-bottom: 0; }
+.notebook-utilities { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 24px; margin-bottom: 0; }
+.notebook-utilities .button-danger { margin-left: auto; border-color: transparent; }
+.notebook .notebook-quiz { margin-top: 24px; }
+.notebook .notebook-quiz fieldset { padding: 16px; border: 1px solid var(--control-border); border-radius: var(--radius-control); }
+.notebook .notebook-quiz legend { font-size: .875rem; padding-inline: 8px; }
+.notebook .notebook-quiz label { display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-block: 8px; border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; line-height: 1.6; }
+.notebook-quiz label input { margin-top: 3px; }
+.notebook-quiz label:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+.notebook-quiz label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; }
+.notebook-history { padding-top: 20px; border-top: 1px solid var(--border); }
+.notebook-history h3 { font-size: 1.125rem; }
+.notebook-history ul { padding-left: 20px; }
+.notebook-history li { padding-block: 8px; font-size: .875rem; color: var(--text-muted); }
+.learning-data-links { padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); }
+.learning-data-links h2, .learning-data-danger h2 { font-size: 1.25rem; }
+.learning-data-links ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; padding: 0; margin: 0; list-style: none; }
+.learning-data-links li { min-width: 0; border-bottom: 1px solid var(--border); }
+.learning-data-links li a { display: flex; align-items: center; gap: 12px; padding-block: 16px; min-height: 72px; text-decoration: none; }
+.learning-data-links li a > span { flex: 1; min-width: 0; }
+.learning-data-links li a strong { display: block; }
+.learning-data-links li a:hover strong { text-decoration: underline; }
+.learning-data-links li a small { display: block; margin-top: 4px; font-size: .875rem; color: var(--text-muted); line-height: 1.6; }
+.learning-data-links > .hint { margin-top: 24px; margin-bottom: 0; }
+.learning-data-danger { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+.learning-data-danger > p:last-child { margin-top: 16px; }
+.learning-data-danger > p { font-size: .875rem; color: var(--text-muted); }
+.learning-data-page .notice { margin-block: 24px; }
+@media (max-width: 1199px) {
+  .notebook .notebook-list { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+  .notebook-entry, .learning-data-links { padding: 20px 16px; }
+  .learning-data-links ul { grid-template-columns: minmax(0, 1fr); }
+  .notebook-answer { padding: 16px; }
+  .notebook-utilities .button-danger { margin-left: 0; }
+}

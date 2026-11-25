@@ -2,5 +2,4 @@
 
 HISTORY-01: lịch sử luyện tập và xóa dữ liệu.
 
-Chưa triển khai. Khi phát triển, thêm api/, components/, hooks/ và types.ts theo nhu cầu thực tế; không tạo hàng loạt file rỗng.
-Logic riêng của tính năng nằm tại đây; phần dùng chung nằm trong src/shared/.
+`components/PracticeHistory.tsx` hiển thị lịch sử hội thoại và thao tác xóa theo hợp đồng hiện có. `types.ts` giữ kiểu mục lịch sử; `styles/history.css` sở hữu bố cục danh sách. Quản lý dữ liệu tổng thể nằm tại `features/learning`. Tải dữ liệu, phân trang và client Session/CSRF dùng shared.

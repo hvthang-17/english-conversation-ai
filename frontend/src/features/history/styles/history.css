@@ -1,0 +1,15 @@
+@import '../../../shared/styles/learning-content.css';
+
+.history-list > li { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.history-info { min-width: 0; }
+.history-info h2 { font-size: 1.125rem; margin: 12px 0 8px; }
+.history-info h2 a { color: var(--text); text-decoration: none; }
+.history-info h2 a:hover { color: var(--primary); text-decoration: underline; }
+.history-info p { font-size: .875rem; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; margin: 0; }
+.history-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+.history-actions .hint { font-size: .875rem; }
+@media (max-width: 767px) {
+  .history-list > li { flex-direction: column; align-items: stretch; gap: 16px; }
+  .history-actions { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .history-actions button { margin-left: auto; }
+}

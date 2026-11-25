@@ -2,5 +2,4 @@
 
 REVIEW-01: lưu và ôn từ vựng, mẫu câu.
 
-Chưa triển khai. Khi phát triển, thêm api/, components/, hooks/ và types.ts theo nhu cầu thực tế; không tạo hàng loạt file rỗng.
-Logic riêng của tính năng nằm tại đây; phần dùng chung nằm trong src/shared/.
+`components/ReviewCards.tsx` hiển thị thẻ từ phản hồi, lật nghĩa và cập nhật trạng thái nhớ. `types.ts` giữ kiểu thẻ và trạng thái ôn; `styles/review.css` sở hữu kiểu flashcard. Tải dữ liệu, phân trang và client Session/CSRF dùng shared. Backend vẫn quyết định quyền và chủ sở hữu.

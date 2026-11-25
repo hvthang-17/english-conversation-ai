@@ -1,8 +1,0 @@
-.learning-panel { max-width: 780px; }
-.learning-panel .form-field select { max-width: 16rem; }
-.learning-list { list-style: none; padding: 0; display: grid; gap: 12px; }
-.learning-list > li { border: 1px solid #d4e2e7; border-radius: 8px; padding: 16px; overflow-wrap: anywhere; }
-.learning-list h3 { margin: 0 0 10px; }
-.learning-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,9rem),1fr)); gap: 12px; padding: 0; }
-.learning-metrics div { padding: 12px; background: #edf4f6; border-radius: 8px; }
-.learning-metrics dd { margin: 0; font-size: 1.5rem; font-weight: 650; }
