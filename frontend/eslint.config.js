@@ -13,4 +13,16 @@ export default defineConfig([
       reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { ecmaVersion: 2022, globals: globals.browser },
   },
+  {
+    files: ['src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/app/**'], message: 'Feature không import app; ghép màn hình và layout tại app.' }] }],
+    },
+  },
+  {
+    files: ['src/shared/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/app/**', '**/features/**'], message: 'Shared độc lập với app và features; truyền dữ liệu qua tham số hoặc props.' }] }],
+    },
+  },
 ])

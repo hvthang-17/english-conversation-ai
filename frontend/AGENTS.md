@@ -6,7 +6,7 @@ React 19 + TypeScript 5.9 + Vite 8; Node 24.19 trở lên trong nhánh 24, npm v
 
 - React + TypeScript + Vite; chưa chọn UI kit. Quy tắc Next.js/RSC không áp dụng.
 - Dùng CSS cơ bản tại src/app/styles/global.css; chưa cài Tailwind. Không tự thêm UI kit hoặc React Router khi chưa có nhu cầu màn hình/điều hướng.
-- Tổ chức theo tính năng; API client dùng chung; kiểu dữ liệu rõ.
+- Tổ chức theo [quy tắc cấu trúc frontend](../docs/development/frontend-structure.md): app điều phối/layout, feature chia theo trách nhiệm, shared độc lập. Không import app từ feature hoặc import feature/app từ shared; ESLint kiểm tra ranh giới. API client dùng chung; kiểu dữ liệu rõ.
 - Có trạng thái tải, lỗi, trống; giao diện tiếng Việt, hội thoại tiếng Anh.
 - Chỉ gửi bản chép lời sau xác nhận; dừng media tracks và playback đúng vòng đời.
 - Dùng label/focus/keyboard và kiểm tra màn hình nhỏ cho thay đổi giao diện.
