@@ -1,0 +1,134 @@
+[
+  {
+    "lessonId": 101,
+    "items": [
+      {"kind":"WORD","expression":"hobby","ipa":"ˈhɑbi","meaningVi":"Sở thích","exampleEn":"Drawing is my hobby.","exampleVi":"Vẽ là sở thích của mình."},
+      {"kind":"WORD","expression":"member","ipa":"ˈmɛmbɚ","meaningVi":"Thành viên","exampleEn":"I’m a new member of the club.","exampleVi":"Mình là thành viên mới của câu lạc bộ."},
+      {"kind":"WORD","expression":"club","ipa":"klʌb","meaningVi":"Câu lạc bộ","exampleEn":"I go to the art club on Fridays.","exampleVi":"Mình đến câu lạc bộ mỹ thuật vào thứ Sáu."},
+      {"kind":"PHRASE","expression":"Nice to meet you.","meaningVi":"Rất vui được gặp bạn.","exampleEn":"Hi, I’m Linh. Nice to meet you.","exampleVi":"Chào bạn, mình là Linh. Rất vui được gặp bạn."},
+      {"kind":"PHRASE","expression":"What do you like doing?","meaningVi":"Bạn thích làm gì?","exampleEn":"What do you like doing after class?","exampleVi":"Bạn thích làm gì sau giờ học?"}
+    ],
+    "dialogue": {"title":"Làm quen ở câu lạc bộ","lines":[
+      {"line_no":1,"speaker_label":"Mia","text_en":"Hi! Welcome to the club. What’s your name?","text_vi":"Chào bạn! Chào mừng đến câu lạc bộ. Bạn tên gì?","voice_key":"en-us-voice-a-v1"},
+      {"line_no":2,"speaker_label":"Linh","text_en":"Hi, I’m Linh. Nice to meet you.","text_vi":"Chào bạn, mình là Linh. Rất vui được gặp bạn.","voice_key":"en-us-voice-b-v1"},
+      {"line_no":3,"speaker_label":"Mia","text_en":"Nice to meet you, Linh. What do you like doing in your free time?","text_vi":"Rất vui được gặp bạn, Linh. Bạn thích làm gì vào lúc rảnh?","voice_key":"en-us-voice-a-v1"},
+      {"line_no":4,"speaker_label":"Linh","text_en":"I like drawing.","text_vi":"Mình thích vẽ.","voice_key":"en-us-voice-b-v1"}
+    ]}
+  },
+  {
+    "lessonId": 105,
+    "items": [
+      {"kind":"WORD","expression":"reservation","ipa":"ˌɹɛzɚˈveɪʃən","meaningVi":"Đặt phòng","exampleEn":"May I confirm your reservation?","exampleVi":"Tôi có thể xác nhận đặt phòng của bạn được không?"},
+      {"kind":"WORD","expression":"guest","ipa":"ɡɛst","meaningVi":"Khách lưu trú","exampleEn":"We need a room for two guests.","exampleVi":"Chúng tôi cần một phòng cho hai khách."},
+      {"kind":"WORD","expression":"cancellation","ipa":"ˌkænsəˈleɪʃən","meaningVi":"Việc hủy đặt chỗ","exampleEn":"The price includes free cancellation until Thursday.","exampleVi":"Giá này cho phép hủy đặt chỗ miễn phí đến thứ Năm."},
+      {"kind":"PHRASE","expression":"Is breakfast included?","meaningVi":"Giá đã bao gồm bữa sáng chưa?","exampleEn":"Is breakfast included in the room price?","exampleVi":"Giá phòng đã bao gồm bữa sáng chưa?"},
+      {"kind":"PHRASE","expression":"What time can we check in?","meaningVi":"Chúng tôi có thể nhận phòng lúc mấy giờ?","exampleEn":"What time can we check in on Friday?","exampleVi":"Thứ Sáu chúng tôi có thể nhận phòng lúc mấy giờ?"}
+    ],
+    "dialogue": {"title":"Chọn gói đặt phòng","lines":[
+      {"line_no":1,"speaker_label":"Lễ tân","text_en":"Are you looking for a room for one night or two?","text_vi":"Bạn muốn đặt phòng một đêm hay hai đêm?","voice_key":"en-us-voice-a-v1"},
+      {"line_no":2,"speaker_label":"Khách","text_en":"Two nights, from Friday to Sunday. Is breakfast included?","text_vi":"Hai đêm, từ thứ Sáu đến Chủ nhật. Giá đã bao gồm bữa sáng chưa?","voice_key":"en-us-voice-b-v1"},
+      {"line_no":3,"speaker_label":"Lễ tân","text_en":"We have two options. The first includes breakfast, but you can’t cancel for free. The second doesn’t include breakfast, but you can cancel for free until Thursday.","text_vi":"Chúng tôi có hai lựa chọn. Gói đầu có bữa sáng nhưng không được hủy miễn phí. Gói thứ hai không có bữa sáng nhưng được hủy miễn phí đến thứ Năm.","voice_key":"en-us-voice-a-v1"},
+      {"line_no":4,"speaker_label":"Khách","text_en":"Our plans may change, so I’d prefer the second option. Can you confirm it’s for two guests, Friday to Sunday?","text_vi":"Kế hoạch có thể thay đổi nên tôi chọn gói thứ hai. Bạn xác nhận giúp tôi phòng cho hai khách từ thứ Sáu đến Chủ nhật được không?","voice_key":"en-us-voice-b-v1"},
+      {"line_no":5,"speaker_label":"Lễ tân","text_en":"Yes. That’s two guests, checking in on Friday and checking out on Sunday.","text_vi":"Đúng vậy. Hai khách nhận phòng thứ Sáu và trả phòng Chủ nhật.","voice_key":"en-us-voice-a-v1"}
+    ]}
+  },
+  {
+    "lessonId": 102,
+    "items": [
+      {"kind":"WORD","expression":"usually","ipa":"ˈjuʒuəli","meaningVi":"Thường","exampleEn":"I usually get up at six.","exampleVi":"Mình thường dậy lúc sáu giờ."},
+      {"kind":"WORD","expression":"breakfast","ipa":"ˈbɹɛkfəst","meaningVi":"Bữa sáng","exampleEn":"I have breakfast at seven.","exampleVi":"Mình ăn sáng lúc bảy giờ."},
+      {"kind":"WORD","expression":"practice","ipa":"ˈpɹæktɪs","meaningVi":"Luyện tập","exampleEn":"I practice English after school.","exampleVi":"Mình luyện tiếng Anh sau giờ học."},
+      {"kind":"PHRASE","expression":"What time do you usually get up?","meaningVi":"Bạn thường thức dậy lúc mấy giờ?","exampleEn":"On school days, what time do you usually get up?","exampleVi":"Vào ngày đi học, bạn thường thức dậy lúc mấy giờ?"},
+      {"kind":"PHRASE","expression":"What do you do after school?","meaningVi":"Bạn làm gì sau giờ học?","exampleEn":"What do you do after school on Mondays?","exampleVi":"Bạn làm gì sau giờ học vào thứ Hai?"}
+    ],
+    "dialogue": {"title":"Một ngày điển hình","lines":[
+      {"line_no":1,"speaker_label":"Ben","text_en":"What time do you usually get up?","text_vi":"Bạn thường thức dậy lúc mấy giờ?"},
+      {"line_no":2,"speaker_label":"Lan","text_en":"At six. I have breakfast at seven. What time do you leave home?","text_vi":"Lúc sáu giờ. Mình ăn sáng lúc bảy giờ. Bạn rời nhà lúc mấy giờ?"},
+      {"line_no":3,"speaker_label":"Ben","text_en":"At seven thirty. What do you do after school?","text_vi":"Lúc bảy giờ rưỡi. Bạn làm gì sau giờ học?"},
+      {"line_no":4,"speaker_label":"Lan","text_en":"I usually play football.","text_vi":"Mình thường chơi bóng đá."}
+    ]}
+  },
+  {
+    "lessonId": 103,
+    "items": [
+      {"kind":"WORD","expression":"receipt","ipa":"ɹɪˈsit","meaningVi":"Hóa đơn mua hàng","exampleEn":"I brought the receipt with me.","exampleVi":"Tôi mang theo hóa đơn."},
+      {"kind":"WORD","expression":"exchange","ipa":"ɪksˈtʃeɪndʒ","meaningVi":"Đổi hàng","exampleEn":"Can I exchange this shirt for a larger size?","exampleVi":"Tôi có thể đổi chiếc áo này sang cỡ lớn hơn không?"},
+      {"kind":"WORD","expression":"medium","ipa":"ˈmidiəm","meaningVi":"Cỡ vừa","exampleEn":"Do you have this shirt in a medium?","exampleVi":"Cửa hàng có chiếc áo này cỡ vừa không?"},
+      {"kind":"PHRASE","expression":"Which would you prefer?","meaningVi":"Bạn thích lựa chọn nào hơn?","exampleEn":"We have blue or black. Which would you prefer?","exampleVi":"Chúng tôi có xanh hoặc đen. Bạn thích màu nào hơn?"},
+      {"kind":"PHRASE","expression":"I’ll take the blue one.","meaningVi":"Tôi sẽ lấy chiếc màu xanh.","exampleEn":"I need it tomorrow, so I’ll take the blue one.","exampleVi":"Tôi cần dùng ngày mai nên sẽ lấy chiếc màu xanh."}
+    ],
+    "dialogue": {"title":"Đổi áo tại quầy","lines":[
+      {"line_no":1,"speaker_label":"Nhân viên","text_en":"Hi. How can I help you?","text_vi":"Chào bạn. Tôi có thể giúp gì cho bạn?"},
+      {"line_no":2,"speaker_label":"Khách","text_en":"I’d like to exchange this shirt because it’s too small. Do you have it in a medium?","text_vi":"Tôi muốn đổi áo vì áo quá nhỏ. Cửa hàng có cỡ vừa không?"},
+      {"line_no":3,"speaker_label":"Nhân viên","text_en":"Do you have the receipt?","text_vi":"Bạn có mang hóa đơn không?"},
+      {"line_no":4,"speaker_label":"Khách","text_en":"Yes, here it is.","text_vi":"Có, đây ạ."},
+      {"line_no":5,"speaker_label":"Nhân viên","text_en":"We have a medium in blue, or we can order a black one for Friday.","text_vi":"Chúng tôi có sẵn áo xanh cỡ vừa hoặc có thể đặt áo đen cho thứ Sáu."},
+      {"line_no":6,"speaker_label":"Khách","text_en":"I need it tomorrow, so I’ll take the blue one.","text_vi":"Tôi cần dùng ngày mai nên sẽ lấy chiếc màu xanh."}
+    ]}
+  },
+  {
+    "lessonId": 104,
+    "items": [
+      {"kind":"WORD","expression":"station","ipa":"ˈsteɪʃən","meaningVi":"Nhà ga","exampleEn":"The train station is next to the bank.","exampleVi":"Ga tàu ở cạnh ngân hàng."},
+      {"kind":"WORD","expression":"pharmacy","ipa":"ˈfɑɹməsi","meaningVi":"Nhà thuốc","exampleEn":"Turn left at the pharmacy.","exampleVi":"Rẽ trái ở nhà thuốc."},
+      {"kind":"WORD","expression":"straight","ipa":"stɹeɪt","meaningVi":"Thẳng về phía trước","exampleEn":"Go straight for one block.","exampleVi":"Đi thẳng qua một dãy phố."},
+      {"kind":"PHRASE","expression":"Excuse me, where’s the train station?","meaningVi":"Xin lỗi, ga tàu ở đâu?","exampleEn":"Excuse me, where’s the train station? Is it near here?","exampleVi":"Xin lỗi, ga tàu ở đâu? Có gần đây không?"},
+      {"kind":"PHRASE","expression":"It’s next to the bank.","meaningVi":"Nó ở bên cạnh ngân hàng.","exampleEn":"Look for the station. It’s next to the bank.","exampleVi":"Hãy tìm nhà ga. Nó ở bên cạnh ngân hàng."}
+    ],
+    "dialogue": {"title":"Từ ngã tư đến ga tàu","lines":[
+      {"line_no":1,"speaker_label":"Khách du lịch","text_en":"Excuse me, where’s the train station?","text_vi":"Xin lỗi, ga tàu ở đâu?"},
+      {"line_no":2,"speaker_label":"Người địa phương","text_en":"Go straight, then turn left at the pharmacy.","text_vi":"Đi thẳng rồi rẽ trái tại nhà thuốc."},
+      {"line_no":3,"speaker_label":"Khách du lịch","text_en":"Left at the pharmacy, right?","text_vi":"Rẽ trái ở nhà thuốc, đúng không?"},
+      {"line_no":4,"speaker_label":"Người địa phương","text_en":"Yes. The station is next to the bank.","text_vi":"Đúng vậy. Nhà ga ở cạnh ngân hàng."}
+    ]}
+  },
+  {
+    "lessonId": 106,
+    "items": [
+      {"kind":"WORD","expression":"deadline","ipa":"ˈdɛdˌlaɪn","meaningVi":"Hạn chót","exampleEn":"The deadline for our project is Friday.","exampleVi":"Hạn chót của bài nhóm là thứ Sáu."},
+      {"kind":"WORD","expression":"slides","ipa":"slaɪdz","meaningVi":"Các trang trình chiếu","exampleEn":"We can finish the slides together.","exampleVi":"Chúng ta có thể hoàn thành các trang trình chiếu cùng nhau."},
+      {"kind":"WORD","expression":"notes","ipa":"noʊts","meaningVi":"Ghi chú","exampleEn":"I’ll send my notes before we meet.","exampleVi":"Mình sẽ gửi ghi chú trước khi chúng ta gặp nhau."},
+      {"kind":"PHRASE","expression":"Would Thursday work for you?","meaningVi":"Thứ Năm có tiện cho bạn không?","exampleEn":"Would Thursday work for you instead of Wednesday?","exampleVi":"Thay vì thứ Tư, thứ Năm có tiện cho bạn không?"},
+      {"kind":"PHRASE","expression":"Let’s meet on Thursday at six.","meaningVi":"Chúng ta gặp nhau lúc sáu giờ thứ Năm nhé.","exampleEn":"We’re both free then. Let’s meet on Thursday at six.","exampleVi":"Lúc đó cả hai đều rảnh. Chúng ta gặp nhau lúc sáu giờ thứ Năm nhé."}
+    ],
+    "dialogue": {"title":"Thống nhất giờ làm slide","lines":[
+      {"line_no":1,"speaker_label":"Nam","text_en":"Could we meet on Wednesday at four to work on the slides?","text_vi":"Mình gặp nhau lúc bốn giờ thứ Tư để làm slide được không?"},
+      {"line_no":2,"speaker_label":"Hoa","text_en":"I have class until five. Would Wednesday at six work?","text_vi":"Mình có lớp đến năm giờ. Sáu giờ thứ Tư được không?"},
+      {"line_no":3,"speaker_label":"Nam","text_en":"I have a family dinner on Wednesday. How about Thursday at six?","text_vi":"Tối thứ Tư mình ăn cơm cùng gia đình. Sáu giờ thứ Năm thì sao?"},
+      {"line_no":4,"speaker_label":"Hoa","text_en":"Thursday at six works. Let’s put the slides together then.","text_vi":"Sáu giờ thứ Năm được. Lúc đó chúng ta làm slide cùng nhau nhé."},
+      {"line_no":5,"speaker_label":"Nam","text_en":"Great, let’s meet on Thursday at six. I’ll send my notes before then.","text_vi":"Tuyệt, gặp lúc sáu giờ thứ Năm nhé. Mình sẽ gửi ghi chú trước giờ đó."}
+    ]}
+  },
+  {
+    "lessonId": 107,
+    "items": [
+      {"kind":"WORD","expression":"office","ipa":"ˈɑfɪs","meaningVi":"Văn phòng","exampleEn":"This is my first day at the office.","exampleVi":"Đây là ngày đầu tiên của tôi tại văn phòng."},
+      {"kind":"WORD","expression":"guide","ipa":"ɡaɪd","meaningVi":"Tài liệu hướng dẫn","exampleEn":"The guide is at the front desk.","exampleVi":"Tài liệu hướng dẫn ở quầy lễ tân."},
+      {"kind":"WORD","expression":"colleague","ipa":"ˈkɑliɡ","meaningVi":"Đồng nghiệp","exampleEn":"I meet my new colleague in the morning.","exampleVi":"Tôi gặp đồng nghiệp mới vào buổi sáng."},
+      {"kind":"PHRASE","expression":"Is this your first day?","meaningVi":"Đây là ngày đầu đi làm của bạn phải không?","exampleEn":"Good morning! Is this your first day?","exampleVi":"Chào buổi sáng! Đây là ngày đầu đi làm của bạn phải không?"},
+      {"kind":"PHRASE","expression":"Where can I get the welcome guide?","meaningVi":"Tôi có thể lấy tài liệu dành cho người mới ở đâu?","exampleEn":"I’m new here. Where can I get the welcome guide?","exampleVi":"Tôi mới đến đây. Tôi có thể lấy tài liệu dành cho người mới ở đâu?"}
+    ],
+    "dialogue": {"title":"Nhận tài liệu ngày đầu","lines":[
+      {"line_no":1,"speaker_label":"Sam","text_en":"Good morning! I’m Sam. Is this your first day?","text_vi":"Chào buổi sáng! Tôi là Sam. Đây là ngày đầu đi làm của bạn phải không?"},
+      {"line_no":2,"speaker_label":"Mai","text_en":"Yes. I’m Mai. Nice to meet you. Where can I get the welcome guide?","text_vi":"Vâng. Tôi là Mai. Rất vui được gặp bạn. Tôi lấy tài liệu dành cho người mới ở đâu?"},
+      {"line_no":3,"speaker_label":"Sam","text_en":"You can get it at the front desk.","text_vi":"Bạn có thể lấy ở quầy lễ tân."},
+      {"line_no":4,"speaker_label":"Mai","text_en":"Thanks. I’ll go there now.","text_vi":"Cảm ơn. Tôi sẽ ra đó ngay."}
+    ]}
+  },
+  {
+    "lessonId": 108,
+    "items": [
+      {"kind":"WORD","expression":"strength","ipa":"stɹɛŋθ","meaningVi":"Điểm mạnh","exampleEn":"My main strength is organizing tasks.","exampleVi":"Điểm mạnh chính của tôi là sắp xếp công việc."},
+      {"kind":"WORD","expression":"internship","ipa":"ˈɪntɚnˌʃɪp","meaningVi":"Kỳ thực tập","exampleEn":"I’m applying for a summer internship.","exampleVi":"Tôi đang ứng tuyển một kỳ thực tập mùa hè."},
+      {"kind":"WORD","expression":"experience","ipa":"ɪkˈspɪɹiəns","meaningVi":"Kinh nghiệm","exampleEn":"I have experience working in a team.","exampleVi":"Tôi có kinh nghiệm làm việc nhóm."},
+      {"kind":"PHRASE","expression":"I’m good at organizing tasks.","meaningVi":"Tôi giỏi sắp xếp công việc.","exampleEn":"I’m good at organizing tasks and setting deadlines.","exampleVi":"Tôi giỏi sắp xếp công việc và đặt thời hạn."},
+      {"kind":"PHRASE","expression":"Could you give an example?","meaningVi":"Bạn có thể đưa ra một ví dụ không?","exampleEn":"You mentioned teamwork. Could you give an example?","exampleVi":"Bạn có nhắc đến làm việc nhóm. Bạn có thể đưa ra một ví dụ không?"}
+    ],
+    "dialogue": {"title":"Trả lời câu hỏi về điểm mạnh","lines":[
+      {"line_no":1,"speaker_label":"Nhà tuyển dụng","text_en":"What strength would you bring to this internship?","text_vi":"Bạn có thể đóng góp điểm mạnh nào trong kỳ thực tập này?"},
+      {"line_no":2,"speaker_label":"Ứng viên","text_en":"I’m good at organizing tasks. In a class project, I helped my team finish a presentation on time.","text_vi":"Tôi giỏi sắp xếp công việc. Trong một bài tập trên lớp, tôi đã giúp nhóm hoàn thành bài thuyết trình đúng hạn."},
+      {"line_no":3,"speaker_label":"Nhà tuyển dụng","text_en":"What did you do when someone missed a deadline?","text_vi":"Bạn đã làm gì khi một thành viên trễ hạn?"},
+      {"line_no":4,"speaker_label":"Ứng viên","text_en":"I asked what help they needed. Then we split the remaining work and agreed on a new deadline.","text_vi":"Tôi hỏi bạn ấy cần hỗ trợ gì. Sau đó cả nhóm chia phần việc còn lại và thống nhất thời hạn mới."}
+    ]}
+  }
+]

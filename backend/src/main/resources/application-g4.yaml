@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/english_conversation?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    target: 12
+app:
+  gemini:
+    enabled: false
+  mail:
+    reminders-enabled: false
+  listening:
+    audio-directory: ${LISTENING_AUDIO_DIRECTORY:.runtime/listening}
+    azure:
+      enabled: ${LISTENING_AZURE_ENABLED:false}
+      key: ${AZURE_SPEECH_KEY:}
+      region: ${AZURE_SPEECH_REGION:}

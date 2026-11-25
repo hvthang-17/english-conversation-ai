@@ -3,6 +3,7 @@ package vn.englishconversation.config;
 import java.util.List;
 import org.springframework.context.annotation.*;
 import org.springframework.http.HttpMethod;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.password.*;
@@ -16,6 +17,7 @@ import vn.englishconversation.user.repository.UserRepository;
 
 @Configuration(proxyBeanMethods = false)
 @Profile("!bootstrap")
+@EnableScheduling
 public class SecurityConfig {
   @Bean
   PasswordEncoder passwordEncoder() {
@@ -51,17 +53,38 @@ public class SecurityConfig {
         .requestCache(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers(HttpMethod.GET, "/api/v1/system/health", "/api/v1/auth/csrf")
+                a.requestMatchers(HttpMethod.GET, "/api/v1/system/health", "/api/v1/system/features", "/api/v1/auth/csrf")
                     .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/password-reset/request", "/api/v1/auth/password-reset/confirm")
+                    .permitAll()
+                    .requestMatchers("/api/v1/auth/account", "/api/v1/profile/me/avatar", "/api/v1/profile/me/practice-schedule")
+                    .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")
                     .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/pronunciation/drills", "/api/v1/pronunciation/attempts", "/api/v1/pronunciation/attempts/*").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/pronunciation/drills/*/attempts").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/lessons/*/listening", "/api/v1/listening/exercises", "/api/v1/listening/attempts",
+                        "/api/v1/listening/attempts/*", "/api/v1/listening/attempts/*/audio")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/listening/attempts/*/draft")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/listening/exercises/*/attempts",
+                        "/api/v1/listening/attempts/*/submit", "/api/v1/listening/attempts/*/abandon")
+                    .authenticated()
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/v1/topics",
+                        "/api/v1/lessons",
+                        "/api/v1/lessons/*",
+                        "/api/v1/lessons/*/materials",
                         "/api/v1/scenarios",
                         "/api/v1/scenarios/*")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/lessons/*/bookmarks/*")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.DELETE, "/api/v1/lessons/*/bookmarks/*")
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/profile/me")
                     .authenticated()
@@ -70,7 +93,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/auth/me", "/api/v1/auth/password")
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/practice-sessions/*",
-                        "/api/v1/practice-sessions/*/feedback", "/api/v1/practice-sessions/*/audio/*")
+                        "/api/v1/practice-sessions/*/feedback", "/api/v1/practice-sessions/*/audio",
+                        "/api/v1/practice-sessions/*/audio/*", "/api/v1/practice-sessions/*/messages/*/explanation")
                     .authenticated()
                     .requestMatchers(HttpMethod.PATCH, "/api/v1/practice-sessions/*/mode")
                     .authenticated()
@@ -79,9 +103,18 @@ public class SecurityConfig {
                         "/api/v1/practice-sessions/*/finish", "/api/v1/practice-sessions/*/operations/*/retry",
                         "/api/v1/practice-sessions/*/operations/*/skip",
                         "/api/v1/practice-sessions/*/feedback", "/api/v1/practice-sessions/*/feedback/retry",
-                        "/api/v1/practice-sessions/*/audio", "/api/v1/practice-sessions/*/audio/*/confirm")
+                        "/api/v1/practice-sessions/*/audio", "/api/v1/practice-sessions/*/audio/*/confirm",
+                        "/api/v1/practice-sessions/*/messages/*/explanation")
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/learning/cards", "/api/v1/learning/history", "/api/v1/learning/stats")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/notebook",
+                        "/api/v1/learning/notebook/*/attempts")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/learning/notebook/from-language-item/*",
+                        "/api/v1/learning/notebook/*/attempts", "/api/v1/learning/notebook/*/quiz")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.DELETE, "/api/v1/learning/notebook/*")
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/learning/cards/from-suggestion/*", "/api/v1/learning/cards/*/attempts")
                     .authenticated()

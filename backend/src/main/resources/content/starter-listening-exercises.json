@@ -1,0 +1,599 @@
+[
+  {
+    "id": 201,
+    "lessonId": 101,
+    "title": "Gặp bạn ở lớp nhiếp ảnh",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "Hi, I’m Anna. I’m from Hue, and I like taking photos.",
+    "translationVi": "Chào bạn, mình là Anna. Mình đến từ Huế và thích chụp ảnh.",
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Anna thích làm gì?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Vẽ tranh"
+          },
+          {
+            "code": "B",
+            "text": "Chụp ảnh"
+          },
+          {
+            "code": "C",
+            "text": "Chơi nhạc"
+          }
+        ],
+        "accepted": [
+          "B"
+        ],
+        "explanationVi": "Anna nói mình thích chụp ảnh."
+      },
+      {
+        "code": "q2",
+        "type": "FILL_BLANK",
+        "prompt": "I’m from ___.",
+        "accepted": [
+          "Hue",
+          "Huế"
+        ],
+        "explanationVi": "Anna giới thiệu mình đến từ Huế."
+      },
+      {
+        "code": "q3",
+        "type": "DICTATION",
+        "prompt": "Chép câu chào đầu tiên.",
+        "accepted": [
+          "Hi, I’m Anna",
+          "Hi, I'm Anna",
+          "Hi, I am Anna"
+        ],
+        "explanationVi": "Câu mở đầu là “Hi, I’m Anna.”"
+      }
+    ]
+  },
+  {
+    "id": 202,
+    "lessonId": 102,
+    "title": "Một buổi sáng cuối tuần",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "On Saturdays, I make tea, feed the cat, and then go for a walk.",
+    "translationVi": "Vào thứ Bảy, mình pha trà, cho mèo ăn rồi đi dạo.",
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Người nói kể về ngày nào?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Chủ nhật"
+          },
+          {
+            "code": "B",
+            "text": "Thứ Hai"
+          },
+          {
+            "code": "C",
+            "text": "Thứ Bảy"
+          }
+        ],
+        "accepted": [
+          "C"
+        ],
+        "explanationVi": "Người nói mở đầu bằng “On Saturdays”."
+      },
+      {
+        "code": "q2",
+        "type": "REORDER",
+        "prompt": "Sắp xếp các việc theo lời kể.",
+        "options": [
+          {
+            "code": "walk",
+            "text": "Đi dạo"
+          },
+          {
+            "code": "tea",
+            "text": "Pha trà"
+          },
+          {
+            "code": "cat",
+            "text": "Cho mèo ăn"
+          }
+        ],
+        "accepted": [
+          "tea",
+          "cat",
+          "walk"
+        ],
+        "explanationVi": "Người nói pha trà trước, sau đó cho mèo ăn và đi dạo."
+      },
+      {
+        "code": "q3",
+        "type": "FILL_BLANK",
+        "prompt": "I feed the ___.",
+        "accepted": [
+          "cat"
+        ],
+        "explanationVi": "Người nói cho mèo ăn."
+      }
+    ]
+  },
+  {
+    "id": 203,
+    "lessonId": 103,
+    "title": "Đổi đôi giày chật",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "I bought these shoes last week, but they’re too tight. Could I exchange them? We can order a larger size for Monday, or I can offer a refund today. I need them for Tuesday, so I’ll wait until Monday.",
+    "translationVi": "Khách mua giày tuần trước nhưng bị chật. Nhân viên có thể đặt cỡ lớn hơn cho thứ Hai hoặc hoàn tiền hôm nay. Khách cần giày vào thứ Ba nên chọn đợi.",
+    "segments": [
+      {
+        "line_no": 1,
+        "speaker_label": "Khách",
+        "text_en": "I bought these shoes last week, but they’re too tight. Could I exchange them?",
+        "voice_key": "en-us-voice-b-v1"
+      },
+      {
+        "line_no": 2,
+        "speaker_label": "Nhân viên",
+        "text_en": "We can order a larger size for Monday, or I can offer a refund today.",
+        "voice_key": "en-us-voice-a-v1"
+      },
+      {
+        "line_no": 3,
+        "speaker_label": "Khách",
+        "text_en": "I need them for Tuesday, so I’ll wait until Monday.",
+        "voice_key": "en-us-voice-b-v1"
+      }
+    ],
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Khách chọn phương án nào?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Đợi lấy cỡ lớn hơn"
+          },
+          {
+            "code": "B",
+            "text": "Hoàn tiền ngay"
+          },
+          {
+            "code": "C",
+            "text": "Giữ đôi giày chật"
+          }
+        ],
+        "accepted": [
+          "A"
+        ],
+        "explanationVi": "Khách nói sẽ đợi đến thứ Hai."
+      },
+      {
+        "code": "q2",
+        "type": "FILL_BLANK",
+        "prompt": "The shoes are too ___.",
+        "accepted": [
+          "tight"
+        ],
+        "explanationVi": "“Too tight” nghĩa là quá chật."
+      },
+      {
+        "code": "q3",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Vì sao khách có thể chờ?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Khách cần giày cho thứ Hai"
+          },
+          {
+            "code": "B",
+            "text": "Khách cần giày cho thứ Ba"
+          },
+          {
+            "code": "C",
+            "text": "Khách sẽ đi vào cuối tuần"
+          }
+        ],
+        "accepted": [
+          "B"
+        ],
+        "explanationVi": "Khách nói cần giày vào thứ Ba."
+      }
+    ]
+  },
+  {
+    "id": 204,
+    "lessonId": 104,
+    "title": "Tìm bến xe buýt",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "Cross the street first. Then walk past the bakery. The bus stop is beside the bank.",
+    "translationVi": "Trước hết hãy qua đường. Sau đó đi qua tiệm bánh. Trạm xe buýt nằm cạnh ngân hàng.",
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Trạm xe nằm cạnh đâu?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Ngân hàng"
+          },
+          {
+            "code": "B",
+            "text": "Tiệm bánh"
+          },
+          {
+            "code": "C",
+            "text": "Hiệu sách"
+          }
+        ],
+        "accepted": [
+          "A"
+        ],
+        "explanationVi": "“Beside the bank” chỉ vị trí cạnh ngân hàng."
+      },
+      {
+        "code": "q2",
+        "type": "REORDER",
+        "prompt": "Sắp xếp chỉ dẫn theo lời nói.",
+        "options": [
+          {
+            "code": "stop",
+            "text": "Tìm trạm xe cạnh ngân hàng"
+          },
+          {
+            "code": "cross",
+            "text": "Qua đường"
+          },
+          {
+            "code": "bakery",
+            "text": "Đi qua tiệm bánh"
+          }
+        ],
+        "accepted": [
+          "cross",
+          "bakery",
+          "stop"
+        ],
+        "explanationVi": "Qua đường trước rồi đi qua tiệm bánh."
+      },
+      {
+        "code": "q3",
+        "type": "DICTATION",
+        "prompt": "Chép câu đầu tiên của chỉ dẫn.",
+        "accepted": [
+          "Cross the street first"
+        ],
+        "explanationVi": "Từ “first” đánh dấu việc làm đầu tiên."
+      }
+    ]
+  },
+  {
+    "id": 205,
+    "lessonId": 105,
+    "title": "Chọn phòng yên tĩnh",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "Could I have a quiet room for two nights? The room facing the garden is quieter, but breakfast costs extra. That’s fine. I’d rather have a quiet room.",
+    "translationVi": "Khách muốn phòng yên tĩnh cho hai đêm. Phòng hướng vườn yên tĩnh hơn nhưng bữa sáng tính thêm. Khách vẫn chọn phòng yên tĩnh.",
+    "segments": [
+      {
+        "line_no": 1,
+        "speaker_label": "Khách",
+        "text_en": "Could I have a quiet room for two nights?",
+        "voice_key": "en-us-voice-b-v1"
+      },
+      {
+        "line_no": 2,
+        "speaker_label": "Lễ tân",
+        "text_en": "The room facing the garden is quieter, but breakfast costs extra.",
+        "voice_key": "en-us-voice-a-v1"
+      },
+      {
+        "line_no": 3,
+        "speaker_label": "Khách",
+        "text_en": "That’s fine. I’d rather have a quiet room.",
+        "voice_key": "en-us-voice-b-v1"
+      }
+    ],
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Khách ưu tiên điều gì?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Bữa sáng miễn phí"
+          },
+          {
+            "code": "B",
+            "text": "Phòng yên tĩnh"
+          },
+          {
+            "code": "C",
+            "text": "Phòng hướng phố"
+          }
+        ],
+        "accepted": [
+          "B"
+        ],
+        "explanationVi": "Khách nói ưu tiên phòng yên tĩnh."
+      },
+      {
+        "code": "q2",
+        "type": "FILL_BLANK",
+        "prompt": "Breakfast costs ___.",
+        "accepted": [
+          "extra"
+        ],
+        "explanationVi": "Lễ tân cho biết bữa sáng tính thêm."
+      },
+      {
+        "code": "q3",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Khách muốn ở mấy đêm?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Một"
+          },
+          {
+            "code": "B",
+            "text": "Ba"
+          },
+          {
+            "code": "C",
+            "text": "Hai"
+          }
+        ],
+        "accepted": [
+          "C"
+        ],
+        "explanationVi": "Khách hỏi đặt phòng cho “two nights”."
+      }
+    ]
+  },
+  {
+    "id": 206,
+    "lessonId": 106,
+    "title": "Chuyển buổi học nhóm",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "I have a lab until five on Tuesday. Could we meet on Wednesday instead? Yes. Let’s meet in the library at four, and please bring the survey results. I’ll send them tonight so you can read them before we meet.",
+    "translationVi": "Linh bận thực hành đến năm giờ thứ Ba nên xin đổi sang thứ Tư. Minh hẹn bốn giờ ở thư viện và nhờ mang kết quả khảo sát. Linh sẽ gửi kết quả tối nay.",
+    "segments": [
+      {
+        "line_no": 1,
+        "speaker_label": "Linh",
+        "text_en": "I have a lab until five on Tuesday. Could we meet on Wednesday instead?",
+        "voice_key": "en-us-voice-b-v1"
+      },
+      {
+        "line_no": 2,
+        "speaker_label": "Minh",
+        "text_en": "Yes. Let’s meet in the library at four, and please bring the survey results.",
+        "voice_key": "en-us-voice-a-v1"
+      },
+      {
+        "line_no": 3,
+        "speaker_label": "Linh",
+        "text_en": "I’ll send them tonight so you can read them before we meet.",
+        "voice_key": "en-us-voice-b-v1"
+      }
+    ],
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Hai bạn hẹn ở đâu?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Thư viện"
+          },
+          {
+            "code": "B",
+            "text": "Phòng thực hành"
+          },
+          {
+            "code": "C",
+            "text": "Quán ăn"
+          }
+        ],
+        "accepted": [
+          "A"
+        ],
+        "explanationVi": "Minh đề nghị gặp ở thư viện."
+      },
+      {
+        "code": "q2",
+        "type": "FILL_BLANK",
+        "prompt": "Let’s meet in the library at ___.",
+        "accepted": [
+          "four",
+          "4"
+        ],
+        "explanationVi": "Hai bạn hẹn gặp lúc bốn giờ."
+      },
+      {
+        "code": "q3",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Linh sẽ làm gì trước buổi gặp?",
+        "options": [
+          {
+            "code": "A",
+            "text": "In tài liệu"
+          },
+          {
+            "code": "B",
+            "text": "Gửi kết quả khảo sát"
+          },
+          {
+            "code": "C",
+            "text": "Đặt phòng học"
+          }
+        ],
+        "accepted": [
+          "B"
+        ],
+        "explanationVi": "Linh nói sẽ gửi kết quả tối nay."
+      }
+    ]
+  },
+  {
+    "id": 207,
+    "lessonId": 107,
+    "title": "Nhận thẻ ngày đầu đi làm",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "Please get your badge at reception. Then meet Maya on the second floor.",
+    "translationVi": "Hãy nhận thẻ ở quầy lễ tân. Sau đó gặp Maya ở tầng hai.",
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Nhận thẻ ở đâu?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Phòng họp"
+          },
+          {
+            "code": "B",
+            "text": "Quầy lễ tân"
+          },
+          {
+            "code": "C",
+            "text": "Tầng hai"
+          }
+        ],
+        "accepted": [
+          "B"
+        ],
+        "explanationVi": "“At reception” là ở quầy lễ tân."
+      },
+      {
+        "code": "q2",
+        "type": "FILL_BLANK",
+        "prompt": "Meet Maya on the ___ floor.",
+        "accepted": [
+          "second",
+          "2nd"
+        ],
+        "explanationVi": "Maya ở tầng hai."
+      },
+      {
+        "code": "q3",
+        "type": "DICTATION",
+        "prompt": "Chép câu hướng dẫn nhận thẻ.",
+        "accepted": [
+          "Please get your badge at reception"
+        ],
+        "explanationVi": "Câu đầu hướng dẫn nhận thẻ."
+      }
+    ]
+  },
+  {
+    "id": 208,
+    "lessonId": 108,
+    "title": "Kể về kinh nghiệm làm việc nhóm",
+    "instructions": "Nghe và trả lời các câu hỏi. Bạn có thể nghe lại.",
+    "ttsVoiceKey": "en-us-voice-a-v1",
+    "transcriptEn": "Tell me about a time you solved a problem in a team. Our club had too few volunteers, so I made a schedule and asked each member to cover one shift. What happened after that? We filled all the shifts and opened the event on time.",
+    "translationVi": "Ứng viên kể về lần câu lạc bộ thiếu tình nguyện viên. Bạn ấy lập lịch, nhờ mỗi thành viên phụ trách một ca và sự kiện mở cửa đúng giờ.",
+    "segments": [
+      {
+        "line_no": 1,
+        "speaker_label": "Nhà tuyển dụng",
+        "text_en": "Tell me about a time you solved a problem in a team.",
+        "voice_key": "en-us-voice-b-v1"
+      },
+      {
+        "line_no": 2,
+        "speaker_label": "Ứng viên",
+        "text_en": "Our club had too few volunteers, so I made a schedule and asked each member to cover one shift.",
+        "voice_key": "en-us-voice-a-v1"
+      },
+      {
+        "line_no": 3,
+        "speaker_label": "Nhà tuyển dụng",
+        "text_en": "What happened after that?",
+        "voice_key": "en-us-voice-b-v1"
+      },
+      {
+        "line_no": 4,
+        "speaker_label": "Ứng viên",
+        "text_en": "We filled all the shifts and opened the event on time.",
+        "voice_key": "en-us-voice-a-v1"
+      }
+    ],
+    "questions": [
+      {
+        "code": "q1",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Nhóm gặp vấn đề gì?",
+        "options": [
+          {
+            "code": "A",
+            "text": "Thiếu tình nguyện viên"
+          },
+          {
+            "code": "B",
+            "text": "Thiếu phòng"
+          },
+          {
+            "code": "C",
+            "text": "Thiếu kinh phí"
+          }
+        ],
+        "accepted": [
+          "A"
+        ],
+        "explanationVi": "Ứng viên nói câu lạc bộ có quá ít tình nguyện viên."
+      },
+      {
+        "code": "q2",
+        "type": "REORDER",
+        "prompt": "Sắp xếp theo diễn biến câu chuyện.",
+        "options": [
+          {
+            "code": "event",
+            "text": "Mở cửa sự kiện đúng giờ"
+          },
+          {
+            "code": "short",
+            "text": "Phát hiện thiếu tình nguyện viên"
+          },
+          {
+            "code": "schedule",
+            "text": "Lập lịch chia ca"
+          }
+        ],
+        "accepted": [
+          "short",
+          "schedule",
+          "event"
+        ],
+        "explanationVi": "Sau khi phát hiện thiếu người, ứng viên lập lịch để sự kiện mở đúng giờ."
+      },
+      {
+        "code": "q3",
+        "type": "FILL_BLANK",
+        "prompt": "We opened the event on ___.",
+        "accepted": [
+          "time"
+        ],
+        "explanationVi": "“On time” nghĩa là đúng giờ."
+      }
+    ]
+  }
+]

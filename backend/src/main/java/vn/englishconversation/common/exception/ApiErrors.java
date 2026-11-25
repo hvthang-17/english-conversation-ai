@@ -30,7 +30,8 @@ public class ApiErrors {
 
   @ExceptionHandler(ApiException.class)
   ResponseEntity<ApiErrorResponse> known(ApiException e) {
-    return body(e.status, e.code, e.getMessage(), Map.of());
+    var response = body(e.status, e.code, e.getMessage(), Map.of());
+    return e.status==429 ? ResponseEntity.status(429).headers(response.getHeaders()).header("Retry-After","60").body(response.getBody()) : response;
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -49,7 +50,7 @@ public class ApiErrors {
 
   @ExceptionHandler(MaxUploadSizeExceededException.class)
   ResponseEntity<ApiErrorResponse> uploadTooLarge() {
-    return body(413, "AUDIO_TOO_LARGE", "Bản ghi tối đa 60 giây.", Map.of());
+    return body(413, "UPLOAD_TOO_LARGE", "Tệp tải lên vượt kích thước cho phép.", Map.of());
   }
 
   @ExceptionHandler({MultipartException.class, MissingServletRequestPartException.class,
@@ -78,6 +79,14 @@ public class ApiErrors {
   ResponseEntity<ApiErrorResponse> media() {
     return body(
         415, "UNSUPPORTED_MEDIA_TYPE", "Định dạng của yêu cầu chưa được hỗ trợ.", Map.of());
+  }
+
+  @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestNotUsableException.class)
+  void responseUnavailable(jakarta.servlet.http.HttpServletRequest request,
+      jakarta.servlet.http.HttpServletResponse response) {
+    // Spring has marked the response unusable. Do not reset it or write an error body.
+    org.slf4j.LoggerFactory.getLogger(ApiErrors.class)
+        .debug("Response no longer writable for HTTP {}", request.getMethod());
   }
 
   @ExceptionHandler(Exception.class)

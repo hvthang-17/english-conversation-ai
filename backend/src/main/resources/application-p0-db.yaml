@@ -1,0 +1,18 @@
+# Run after bootstrap in the active profile list to enable JDBC/Flyway only.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/english_conversation?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: ${P0_DB_USERNAME:}
+    password: ${P0_DB_PASSWORD:}
+  flyway:
+    enabled: true
+    target: 1
+    locations: classpath:db/migration
+    default-schema: english_conversation
+    schemas: english_conversation
+    baseline-on-migrate: false
+    clean-disabled: true

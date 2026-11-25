@@ -1,8 +1,14 @@
 spring:
+  profiles:
+    default: bootstrap
   config:
     import:
       - "optional:file:../.env[.properties]"
       - "optional:file:./.env[.properties]"
+  task:
+    scheduling:
+      pool:
+        size: 4
   application:
     name: english-conversation-ai
   datasource:
@@ -23,13 +29,12 @@ spring:
         jdbc:
           time_zone: UTC
   flyway:
-    enabled: true
-    locations: classpath:db/migration
+    enabled: false
     clean-disabled: true
   servlet:
     multipart:
-      max-file-size: 1920044B
-      max-request-size: 2MB
+      max-file-size: 2MB
+      max-request-size: 3MB
       file-size-threshold: 2MB
 server:
   port: ${SERVER_PORT:8080}
@@ -47,6 +52,20 @@ server:
     include-stacktrace: never
 
 app:
+  account:
+    avatar-directory: ${AVATAR_DIRECTORY:.runtime/avatars}
+    cleanup-ms: ${ACCOUNT_CLEANUP_MS:300000}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:}
+    starttls: ${MAIL_STARTTLS:true}
+    public-url: ${APP_PUBLIC_URL:http://localhost:5173}
+    outbox-key: ${MAIL_OUTBOX_KEY:}
+    poll-ms: ${MAIL_POLL_MS:60000}
   voice:
     temp-directory: ${VOICE_TEMP_DIRECTORY:.runtime/voice}
     raw-ttl-seconds: ${VOICE_RAW_TTL_SECONDS:3600}

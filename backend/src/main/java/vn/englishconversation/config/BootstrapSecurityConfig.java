@@ -14,7 +14,7 @@ public class BootstrapSecurityConfig {
   SecurityFilterChain scaffoldSecurity(HttpSecurity http) throws Exception {
     return http.authorizeHttpRequests(
             a ->
-                a.requestMatchers(HttpMethod.GET, "/api/v1/system/health")
+                a.requestMatchers(HttpMethod.GET, "/api/v1/system/health", "/api/v1/system/features")
                     .permitAll()
                     .anyRequest()
                     .denyAll())

@@ -1,0 +1,42 @@
+CREATE TABLE ai_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    session_id BIGINT NULL,
+    task_type VARCHAR(20) NOT NULL,
+    operation_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    request_fingerprint CHAR(64) CHARACTER SET ascii NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    prompt_version VARCHAR(80) NOT NULL,
+    attempt_count INT NOT NULL DEFAULT 0,
+    retryable BOOLEAN NOT NULL DEFAULT FALSE,
+    error_code VARCHAR(100) NULL,
+    retry_not_before DATETIME(6) NULL,
+    processing_expires_at DATETIME(6) NULL,
+    created_at DATETIME(6) NOT NULL,
+    finished_at DATETIME(6) NULL,
+    UNIQUE KEY uq_ai_operation (user_id, task_type, operation_key),
+    INDEX ix_ai_ready (task_type, status, retry_not_before, id),
+    CONSTRAINT fk_ai_request_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT ck_ai_request_status CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','UNKNOWN'))
+);
+
+CREATE TABLE ai_attempts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ai_request_id BIGINT NOT NULL,
+    attempt_no INT NOT NULL,
+    provider VARCHAR(32) NOT NULL,
+    model_name VARCHAR(150) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'RUNNING',
+    provider_request_id VARCHAR(255) NULL,
+    input_tokens BIGINT NULL,
+    output_tokens BIGINT NULL,
+    latency_ms BIGINT NULL,
+    estimated_cost DECIMAL(18,8) NULL,
+    pricing_reference VARCHAR(255) NULL,
+    error_code VARCHAR(100) NULL,
+    started_at DATETIME(6) NOT NULL,
+    finished_at DATETIME(6) NULL,
+    UNIQUE KEY uq_ai_attempt_number (ai_request_id, attempt_no),
+    CONSTRAINT fk_ai_attempt_request FOREIGN KEY (ai_request_id) REFERENCES ai_requests(id) ON DELETE CASCADE,
+    CONSTRAINT ck_ai_attempt_status CHECK (status IN ('RUNNING','SUCCEEDED','FAILED','UNKNOWN'))
+);

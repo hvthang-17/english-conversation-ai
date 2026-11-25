@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/english_conversation?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    target: 10
+app:
+  gemini:
+    enabled: false
+  mail:
+    reminders-enabled: false
