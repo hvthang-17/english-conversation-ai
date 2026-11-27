@@ -30,7 +30,7 @@ export async function getScenario(id: string, level: Level, signal?: AbortSignal
     isObject(role) && ['code', ...fields].every(key => typeof role[key] === 'string'))))
     throw new Error('Danh sách vai giao tiếp không hợp lệ.')
   const detail = value as ScenarioDetail
-  return { ...detail, roles: detail.roles ?? [{
+  return { ...detail, roles: detail.roles?.length ? detail.roles : [{
     code: 'DEFAULT', learnerRole: detail.learnerRole, aiRole: detail.aiRole,
     communicationGoal: detail.communicationGoal, contextDescription: detail.contextDescription,
   }] }

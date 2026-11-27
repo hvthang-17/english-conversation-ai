@@ -2,45 +2,49 @@
 .scenarios-page .catalog-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; padding: 20px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); margin-bottom: 24px; }
 .catalog-filters .form-field { flex: 1 1 220px; min-width: 0; margin: 0; }
 .catalog-filters > button { min-height: 46px; }
-.scenarios-page .result-count { margin: 0 0 16px; color: var(--text-muted); font-size: .875rem; }
+.scenarios-page .result-count { margin: 0 0 16px; color: var(--text-muted); font-size: var(--font-size-meta); }
 .scenario-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .scenario-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); }
 .scenario-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.scenario-topic { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--text-muted); font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.scenario-topic { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--text-muted); font-size: var(--font-size-meta); line-height: 1.6; overflow-wrap: anywhere; }
 .scenario-topic .icon { margin-top: 1px; color: var(--primary); }
 .scenario-card .level-badge { flex: 0 0 auto; }
 .scenario-card h2 { font-size: 1.25rem; margin: 0 0 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .scenario-description { color: var(--text-muted); font-size: 1rem; margin-bottom: 24px; overflow-wrap: anywhere; }
-.scenario-detail-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); font-size: .875rem; font-weight: 600; text-decoration: none; }
+.scenario-detail-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); font-size: var(--font-size-meta); font-weight: 600; text-decoration: none; }
 .scenario-detail-link:hover { text-decoration: underline; }
 .scenario-empty h2 { margin: 16px 0 12px; color: var(--text); font-size: 1.25rem; }
 .scenario-empty > .icon { color: var(--primary); }
-.scenario-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--text-muted); font-size: .875rem; margin: 0 0 16px; }
+.scenario-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--text-muted); font-size: var(--font-size-meta); margin: 0 0 16px; }
 .scenario-detail .back-link { margin-bottom: 16px; }
-.lesson-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.lesson-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
 .lesson-main, .lesson-start { min-width: 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); }
 .lesson-main h2, .lesson-start h2 { font-size: 1.25rem; line-height: 1.4; margin: 0 0 12px; }
 .lesson-context p { margin: 0; color: var(--text-muted); }
 .lesson-context { margin-bottom: 24px; }
 .role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 0; padding-block: 24px; border-top: 1px solid var(--border); }
-.role-grid dt { color: var(--text-muted); font-size: .875rem; margin-bottom: 8px; }
+.role-grid dt { color: var(--text-muted); font-size: var(--font-size-meta); margin-bottom: 8px; }
 .role-grid dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .lesson-goal { padding: 20px; background: var(--primary-soft); border-radius: var(--radius-control); }
 .lesson-goal h2 { display: flex; align-items: center; gap: 8px; font-size: 1.125rem; }
 .lesson-goal h2 .icon { color: var(--primary); }
 .lesson-goal p { margin: 0; overflow-wrap: anywhere; }
-.scenario-start-description { color: var(--text-muted); font-size: .875rem; margin-bottom: 24px; }
-.practice-mode-options legend { padding-bottom: 12px; font-weight: 600; font-size: .875rem; }
+.scenario-start-description { color: var(--text-muted); font-size: var(--font-size-meta); margin-bottom: 24px; }
+.practice-mode-options legend { padding-bottom: 12px; font-weight: 600; font-size: var(--font-size-meta); }
 .practice-mode-options label { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--control-border); border-radius: var(--radius-control); cursor: pointer; }
 .practice-mode-options label:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
 .practice-mode-options label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; }
 .practice-mode-options input { margin-top: 2px; }
 .practice-mode-options span { min-width: 0; overflow-wrap: anywhere; }
-.practice-mode-options strong { display: block; font-size: .875rem; }
-.practice-mode-options small { display: block; margin-top: 4px; color: var(--text-muted); font-size: .875rem; line-height: 1.6; }
-.scenario-role-options { margin-bottom: 12px; }
+.practice-mode-options strong { display: block; font-size: var(--font-size-meta); }
+.practice-mode-options small { display: block; margin-top: 4px; color: var(--text-muted); font-size: var(--font-size-meta); line-height: 1.6; }
+.scenario-role-options { min-inline-size: 0; border: 0; border-top: 1px solid var(--border); padding-inline: 0; gap: 12px 24px; }
+.scenario-role-options legend { padding: 0 8px 0 0; font-weight: 600; }
+.scenario-role-options .form-field { min-width: 0; margin: 0; }
+.scenario-role-options select { width: 100%; }
+.scenario-role-options .hint { grid-column: 1 / -1; margin: 0; }
 .lesson-start > .button-primary { width: 100%; margin-top: 12px; }
-.lesson-start .hint { margin: 16px 0 0; font-size: .875rem; }
+.lesson-start .hint { margin: 16px 0 0; font-size: var(--font-size-meta); }
 @media (max-width: 1199px) {
   .lesson-layout { grid-template-columns: minmax(0, 1fr); }
 }
