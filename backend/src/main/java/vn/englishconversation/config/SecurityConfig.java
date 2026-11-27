@@ -106,10 +106,23 @@ public class SecurityConfig {
                         "/api/v1/practice-sessions/*/audio", "/api/v1/practice-sessions/*/audio/*/confirm",
                         "/api/v1/practice-sessions/*/messages/*/explanation")
                     .authenticated()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/cards", "/api/v1/learning/history", "/api/v1/learning/stats")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/progress", "/api/v1/learning/progress/lessons/*").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/progress/notifications").hasAnyRole("LEARNER","ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/learning/progress/heartbeat",
+                        "/api/v1/learning/progress/lessons/*").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/learning/progress/notifications/*/read").hasAnyRole("LEARNER","ADMIN")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/support/tickets", "/api/v1/support/tickets/*",
+                        "/api/v1/support/tickets/*/messages").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/support/tickets", "/api/v1/support/tickets/preview",
+                        "/api/v1/support/tickets/*/messages").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/plans", "/api/v1/learning/plans/*").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/learning/plans", "/api/v1/learning/plans/*/items",
+                        "/api/v1/learning/plans/*/items/*/finish").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/learning/plans/*", "/api/v1/learning/plans/*/items/*").hasRole("LEARNER")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/learning/cards", "/api/v1/learning/history", "/api/v1/learning/stats", "/api/v1/learning/recommendations", "/api/v1/learning/recommendations/difficulty")
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/learning/notebook",
-                        "/api/v1/learning/notebook/*/attempts")
+                        "/api/v1/learning/notebook/*", "/api/v1/learning/notebook/*/attempts")
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/learning/notebook/from-language-item/*",
                         "/api/v1/learning/notebook/*/attempts", "/api/v1/learning/notebook/*/quiz")
