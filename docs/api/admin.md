@@ -19,11 +19,18 @@ Chủ đề nhận `code`, `name`, `description`, `active`, `sortOrder` từ 0 �
 
 Để lưu tình huống `ACTIVE`, chủ đề phải đang mở và tập trình độ phải có ít nhất một mục `A2` hoặc `B1`. Trình độ lặp trả 400, điều kiện công khai chưa đủ trả 422. Dùng `ARCHIVED` để ẩn tình huống, hoặc `active=false` để ẩn cả chủ đề trong danh mục người học. Mở lại chủ đề sẽ hiện lại các tình huống vẫn ACTIVE và có trình độ. Tình huống vẫn thuộc chủ đề trên đường dẫn.
 
-Audit V18 lưu actor, hành động, loại/ID đối tượng và thời gian. Sự kiện tài khoản ghi thêm quyền/trạng thái trước và sau. Sự kiện catalog chỉ ghi đích thay đổi. Admin có quyền đọc hướng dẫn AI của tình huống để biên tập. Các API quản trị giới hạn ở tài khoản, catalog và số liệu tổng hợp. Hội thoại riêng vẫn yêu cầu quyền sở hữu buổi.
+Audit lưu actor, hành động, loại/ID đối tượng và thời gian. Sự kiện tài khoản ghi thêm quyền/trạng thái trước và sau. Sự kiện catalog chỉ ghi đích thay đổi. Admin có quyền đọc hướng dẫn AI của tình huống để biên tập. Hội thoại riêng vẫn yêu cầu quyền sở hữu buổi.
 
 G10.1 chặn admin tự đổi quyền, tự khóa hoặc tự xóa tài khoản. Để xóa tài khoản admin, một admin khác phải chuyển tài khoản đó thành LEARNER trước. Tài khoản đang chờ xóa không được đổi quyền/trạng thái. Khi thay đổi có hiệu lực, backend thu hồi phiên và ghi audit trong cùng giao dịch.
 
-Profile g6 cung cấp GET /audit và GET /ai-attempts dưới /api/v1/admin. Trả tối đa 50 mục gần nhất, chỉ ADMIN. Audit hiển thị mã hành động và ID; AI hiển thị tác vụ, model, provider, trạng thái và độ trễ.
+Profile g6 cung cấp GET `/audit` và GET `/ai-attempts` dưới `/api/v1/admin`, chỉ ADMIN, `Cache-Control: no-store`. Audit hiển thị mã hành động và ID; AI hiển thị tác vụ, model, provider, trạng thái và độ trễ; không trả nội dung hội thoại.
+
+- Không truyền `page`: giữ tương thích phản hồi mảng tối đa 50 mục mới nhất.
+- Truyền `page=0&size=12&q=`: trả `{items,page,size,total}`; page từ 0, size 1–50 (mặc định 12). Sắp xếp ID giảm dần, lọc trước khi phân trang và tính total theo cùng bộ lọc.
+- `q` tối đa 120 ký tự sau trim, tìm chuỗi con trong metadata (ID, mã tác vụ/hành động, đối tượng/provider, reference/model, actor, trạng thái, thời điểm UTC). Hỗ trợ nhãn tiếng Việt đã ánh xạ trên UI như “Hội thoại”, “Tạo chủ đề”. `%`, `_` và `!` được tìm như ký tự thường.
+- Riêng `/ai-attempts` nhận `status=RUNNING|SUCCEEDED|FAILED|UNKNOWN` hoặc bỏ trống. Kết hợp với q bằng điều kiện AND. Trang/size sai trả 400 `INVALID_PAGE`; bộ lọc không hợp lệ trả 400 `INVALID_FILTER`.
+
+Giao diện quản trị dùng nhánh phân trang và cho chọn 12/24/50 mục. Dữ liệu nhật ký có thể thay đổi theo chính sách lưu trữ giữa các lần tải.
 
 ## Quản lý học liệu G10.2
 
@@ -56,3 +63,44 @@ Trong giao diện ADMIN, vào **Chủ đề** để thêm, sửa, công bố, �
 Trong **Tình huống**, admin có thể xóa bản nháp qua DELETE /topics/{topicId}/scenarios/{id} hoặc ẩn tình huống đang công khai qua POST /topics/{topicId}/scenarios/{id}/archive. Xóa bị chặn nếu có bài học hoặc buổi luyện tham chiếu. Thao tác ẩn giữ nguyên trình độ, biến thể và snapshot lịch sử. Nhật ký xóa dùng SCENARIO_UPDATED với metadata operation=DELETE.
 
 POST /topics/{topicId}/scenarios/{id}/restore công khai lại tình huống đã ẩn khi chủ đề đang mở, có trình độ và cấu hình vai hợp lệ. Thao tác giữ nguyên nội dung và snapshot buổi cũ.
+
+
+### Tách thẻ Từ vựng và Mẫu câu
+
+GET `/api/v1/admin/materials/WORDS` nhận thêm query tùy chọn `expressionKind=WORD` hoặc `expressionKind=PHRASE`. Bộ lọc áp dụng trước LIMIT/OFFSET và tổng `total` chỉ tính loại được chọn. Bỏ qua bộ lọc vẫn trả cả hai loại như trước. Giá trị khác hoặc truyền bộ lọc cho loại học liệu khác trả 422 `MATERIAL_INVALID`. Giá trị lọc được bind vào SQL, không ghép trực tiếp đầu vào.
+
+Giao diện chia sáu thẻ con: Bài học, Từ vựng, Mẫu câu, Hội thoại mẫu, Đề nghe, Bài phát âm. Hai thẻ từ/mẫu câu vẫn tạo và sửa qua `/materials/WORDS`, trường `kind` tương ứng WORD/PHRASE. Mỗi thẻ có danh sách và phân trang riêng, về trang đầu khi đổi thẻ. Thẻ tạm khóa khi editor hoặc xác nhận đang mở để không mất dữ liệu nhập.
+
+Triển khai backend hỗ trợ bộ lọc trước hoặc cùng frontend mới. Không đổi schema, không cần migration hay biến môi trường mới; phân quyền Session/ADMIN và CSRF giữ nguyên.
+
+GET /materials/LESSONS/lesson-catalog-options trả danh sách chủ đề và tình huống cho form bài học. Danh sách tình huống gồm tên, chủ đề, trạng thái công khai và cấp độ, còn dữ liệu ghi vẫn dùng topic_id và scenario_id.
+
+Danh mục liên kết cũng trả danh sách bài học theo chủ đề để chọn khi biên tập từ vựng, mẫu câu, hội thoại mẫu, đề nghe và bài phát âm. API ghi nhận lesson_id của bài đã chọn.
+
+## Phiếu hỗ trợ G10.4
+
+Admin xem hàng đợi, nhận hoặc phân công lại cho admin đang hoạt động. Quyền phản hồi và chuyển trạng thái thuộc người được phân công hiện tại. [Hợp đồng hàng đợi và hỗ trợ](support.md#hàng-đợi-quản-trị-g104).
+
+## Thông báo G10.5
+
+| API dưới `/announcements` | Hành vi |
+| --- | --- |
+| `GET ?page=0&size=12` | Danh sách phân trang có trạng thái hiệu lực, phiên bản và số người còn trong danh sách nhận đã lưu. |
+| `POST` | Tạo nháp với `{draft,clientRequestId}`. `draft` có `title`, `body`, `audienceRole`, `audienceLevel` và `expiresAt`. Cùng người tạo, UUID và nội dung trả bản đã tạo. |
+| `PUT /{id}` | Sửa nháp với `{draft,version}`. |
+| `POST /preview` | Nhận trực tiếp `draft`, trả nội dung nháp và số người đủ điều kiện lúc xem trước. |
+| `POST /{id}/publish` | Nhận `version`, công bố và lưu người nhận trong cùng giao dịch với audit. Gửi lại bản đã công bố giữ danh sách đã lưu. |
+| `POST /{id}/archive` | Ẩn bản đã công bố khỏi hộp thư. |
+
+Tiêu đề tối đa 200 ký tự, nội dung tối đa 1.000 ký tự. Người nhận là tài khoản đang hoạt động, quyền `LEARNER` hoặc `ADMIN`. Chỉ nhóm `LEARNER` có thể lọc `A2` hoặc `B1`. Thay đổi trình độ sau công bố giữ danh sách nhận ban đầu. `expiresAt` là mốc ISO 8601 tùy chọn. Tại thời điểm hết hạn, admin thấy `EXPIRED` và hộp thư ngừng hiển thị. Khi cần chỉnh nội dung đã công bố, tạo bản nháp mới.
+
+## Thống kê và nhật ký G10.6
+
+`GET /metrics?days=7` nhận số nguyên từ 1 đến 90, mặc định 7. Phản hồi gồm khoảng thời gian UTC và các số liệu sau. Hai API phân trang `/audit` và `/ai-attempts` nhận cùng tham số `days` để lọc theo kỳ. Bỏ tham số giữ lịch sử theo bộ lọc hiện có. Giao diện cung cấp các kỳ 24 giờ, 7 ngày, 30 ngày và 90 ngày.
+
+- Tài khoản, chủ đề và tình huống là số hiện tại. Đăng ký và hoạt động học tập tính theo mốc ghi nhận trong kỳ.
+- API trả tử số và mẫu số hoàn thành hội thoại. Giao diện lấy số buổi `COMPLETED` chia cho số buổi `COMPLETED` cộng `ABANDONED` có thời điểm kết thúc trong kỳ. Mẫu số bằng 0 hiển thị **Chưa có dữ liệu**. Lượt học lấy từ tin người học, đề nghe đã nộp, lần chấm bài phát âm thành công và lượt ôn đã lưu.
+- Nội dung được sử dụng gồm bài có mốc hoàn thành, tình huống có buổi bắt đầu, đề nghe đã nộp và bài phát âm có lượt chấm hợp lệ.
+- Nhật ký AI nhóm theo tác vụ và nhà cung cấp. Tổng hợp trạng thái, retry, lỗi quota có ghi nhận, độ trễ trung bình và số mẫu, token và số mẫu có usage. Hạn mức hiển thị lấy từ cấu hình ứng dụng. Dữ liệu tổng hợp chỉ bao phủ các lần gọi có ghi `ai_attempts`. Azure TTS công bố đề nghe hiện dùng luồng riêng.
+
+Các API thống kê và nhật ký chỉ trả số tổng hợp hoặc metadata kỹ thuật. Audit phiếu và thông báo lưu loại sự kiện, người thực hiện, ID đối tượng và thời gian.
