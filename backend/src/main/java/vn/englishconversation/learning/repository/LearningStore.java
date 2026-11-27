@@ -33,7 +33,7 @@ SELECT c.*, DATE_FORMAT(last_reviewed_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS reviewed_is
   public Optional<Row> suggestion(long user, long id) {
     return db.find(
         """
-        SELECT s.item_type,s.expression,s.meaning_vi,s.example_en
+        SELECT s.item_type,s.expression,s.meaning_vi,s.example_en,s.part_of_speech
         FROM feedback_suggestions s JOIN session_feedback f ON f.id=s.feedback_id
         JOIN practice_sessions p ON p.id=f.session_id
         WHERE s.id=? AND p.user_id=? AND f.status='SUCCEEDED'
@@ -53,15 +53,16 @@ SELECT c.*, DATE_FORMAT(last_reviewed_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS reviewed_is
         db.insert(
             """
 INSERT INTO review_items(user_id,source_suggestion_id,item_type,expression,meaning_vi,example_en,
-  status,created_at,updated_at)
-VALUES (?,?,?,?,?,?,'NEEDS_REVIEW',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+  part_of_speech,status,created_at,updated_at)
+VALUES (?,?,?,?,?,?,?,'NEEDS_REVIEW',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
 """,
             user,
             suggestion,
             source.text("item_type"),
             source.text("expression"),
             source.text("meaning_vi"),
-            source.text("example_en"));
+            source.text("example_en"),
+            source.text("part_of_speech"));
     return card(user, id);
   }
 
@@ -126,7 +127,8 @@ WHERE id=? AND user_id=?
         row.text("meaning_vi"),
         row.text("example_en"),
         row.text("status"),
-        row.text("reviewed_iso"));
+        row.text("reviewed_iso"),
+        row.text("part_of_speech"));
   }
 
   public Page<HistoryEntry> history(long user, int page, int size) {
@@ -174,6 +176,13 @@ WHERE p.user_id=? ORDER BY p.started_at DESC,p.id DESC LIMIT ? OFFSET ?
   }
 
   public void deletePractice(long user, long id) {
+    db.update("""
+        UPDATE support_tickets t
+        LEFT JOIN messages m ON m.id=t.message_id
+        LEFT JOIN session_feedback f ON f.id=t.feedback_id
+        SET t.message_id=NULL,t.feedback_id=NULL,t.redacted_excerpt=NULL,t.source_removed_at=UTC_TIMESTAMP(6)
+        WHERE t.user_id=? AND (m.session_id=? OR f.session_id=?)
+        """, user, id, id);
     db.update("DELETE FROM feedback_items WHERE session_id=?", id);
     // Deleting suggestions detaches references while preserving the saved card copies.
     db.update(
@@ -216,6 +225,10 @@ DELETE s FROM feedback_suggestions s JOIN session_feedback f ON f.id=s.feedback_
         user,
         id);
     db.update("DELETE FROM practice_sessions WHERE user_id=? AND id=?", user, id);
+  }
+
+  public void deletePlans(long owner) {
+    db.update("DELETE FROM learning_plans WHERE user_id=?", owner);
   }
 
   public void deleteCards(long user) {
@@ -264,7 +277,7 @@ WHERE p.user_id=? GROUP BY t.id,t.name ORDER BY completed DESC,turns DESC,t.name
         db
             .rows(
                 """
-                SELECT i.category AS label,COUNT(*) AS total
+                SELECT i.category AS label,COUNT(DISTINCT i.source_message_id) AS total
                 FROM feedback_items i JOIN session_feedback f ON f.id=i.feedback_id
                 JOIN practice_sessions p ON p.id=i.session_id
                 WHERE p.user_id=? AND f.status='SUCCEEDED' AND i.item_type='ERROR'

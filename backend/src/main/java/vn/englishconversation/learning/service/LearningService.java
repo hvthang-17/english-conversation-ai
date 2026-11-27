@@ -22,11 +22,15 @@ public class LearningService {
   private final java.util.Optional<vn.englishconversation.listening.service.ListeningAttempts> listening;
   private final java.util.Optional<vn.englishconversation.pronunciation.service.PronunciationService> pronunciation;
 
+  private final java.util.Optional<vn.englishconversation.learning.repository.ProgressRepository> progress;
+
   public LearningService(LearningStore store, LessonCatalogRepository lessons,
       java.util.Optional<vn.englishconversation.listening.service.ListeningAttempts> listening,
-      java.util.Optional<vn.englishconversation.pronunciation.service.PronunciationService> pronunciation) {
+      java.util.Optional<vn.englishconversation.pronunciation.service.PronunciationService> pronunciation,
+      java.util.Optional<vn.englishconversation.learning.repository.ProgressRepository> progress) {
     this.listening = listening;
     this.pronunciation = pronunciation;
+    this.progress = progress;
     this.store = store;
     this.lessons = lessons;
   }
@@ -83,6 +87,8 @@ public class LearningService {
   public void deleteAll(AccountPrincipal owner) {
     account(owner);
     for (long id : store.lockAllSessions(owner.id())) store.deletePractice(owner.id(), id);
+    store.deletePlans(owner.id());
+    progress.ifPresent(repository -> repository.clear(owner.id()));
     store.deleteCards(owner.id());
     lessons.removeAll(owner.id());
     listening.ifPresent(service -> service.clear(owner));

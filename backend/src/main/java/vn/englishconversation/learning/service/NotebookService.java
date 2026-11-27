@@ -5,16 +5,18 @@ import static vn.englishconversation.learning.dto.NotebookData.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.Normalizer;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,20 +31,50 @@ import vn.englishconversation.user.repository.UserRepository;
 @Service
 @Profile("!bootstrap & !g1 & !g2")
 public class NotebookService {
+  private static final int DAILY_NEW_LIMIT = 10;
   private final NotebookRepository notebook;
   private final LessonMaterialsRepository materials;
   private final UserRepository users;
+  private final Clock clock;
+  private final boolean spacedEnabled;
 
-  public NotebookService(NotebookRepository notebook, LessonMaterialsRepository materials, UserRepository users) {
+  public NotebookService(NotebookRepository notebook, LessonMaterialsRepository materials, UserRepository users,
+      ObjectProvider<Clock> clocks, Environment environment) {
     this.notebook = notebook;
     this.materials = materials;
     this.users = users;
+    this.clock = clocks.getIfAvailable(Clock::systemUTC);
+    this.spacedEnabled = environment.matchesProfiles("g6");
   }
 
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public Page<Card> cards(AccountPrincipal owner, Status status, int page, int size) {
     validatePage(page, size);
     return notebook.cards(owner.id(), status, page, size);
+  }
+
+  @Transactional(readOnly = true)
+  public Card detail(AccountPrincipal owner, long id) {
+    return NotebookRepository.card(ownedCard(owner, id));
+  }
+
+  @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+  public ReviewQueue queue(AccountPrincipal owner, int limit) {
+    requireSpaced();
+    if (limit < 1 || limit > 20)
+      throw new ApiException(400, "INVALID_PAGINATION", "Mỗi đợt cần từ 1 đến 20 thẻ.");
+    Instant now = clock.instant();
+    LocalDateTime current = utc(now);
+    long user = owner.id();
+    var window = reviewDay(user, now);
+    int remaining = remainingNew(user, window);
+    long newCount = notebook.newCards(user);
+    long dueCount = notebook.dueCards(user, current);
+    var items = new ArrayList<>(notebook.due(user, current, limit));
+    int newLimit = Math.min(remaining, limit - items.size());
+    if (newLimit > 0) items.addAll(notebook.newQueue(user, newLimit));
+    return new ReviewQueue(dueCount, newCount, Math.min(remaining, newCount), remaining,
+        notebook.nextDue(user, current), window.end(), window.zone().getId(), List.copyOf(items));
   }
 
   @Transactional
@@ -53,13 +85,6 @@ public class NotebookService {
           .orElseThrow(() -> new ApiException(404, "LANGUAGE_ITEM_NOT_FOUND", "Mục học liệu không còn khả dụng."));
       return notebook.save(owner.id(), sourceId, item);
     });
-  }
-
-  @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-  public Page<Attempt> history(AccountPrincipal owner, long cardId, int page, int size) {
-    validatePage(page, size);
-    ownedCard(owner, cardId);
-    return notebook.history(cardId, page, size);
   }
 
   @Transactional
@@ -75,35 +100,24 @@ public class NotebookService {
     notebook.clear(owner.id());
   }
 
-  @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-  public QuizState quiz(AccountPrincipal owner, long cardId) {
-    var card = ownedCard(owner, cardId);
-    String answer = card.text("meaning_vi");
-    String kind = "VOCABULARY".equals(card.text("item_type")) ? "WORD" : "PHRASE";
-    String sourceId = card.text("source_language_item_id");
-    var seen = new HashSet<>(List.of(meaningKey(answer)));
-    var options = new ArrayList<QuizOption>();
-    for (String meaning : materials.quizMeanings(kind, sourceId == null ? null : Long.valueOf(sourceId))) {
-      if (seen.add(meaningKey(meaning))) options.add(new QuizOption(UUID.randomUUID().toString(), meaning));
-      if (options.size() == 2) break;
-    }
-    if (options.size() < 2)
-      throw new ApiException(409, "QUIZ_UNAVAILABLE", "Chưa đủ lựa chọn phù hợp. Bạn vẫn có thể ôn bằng flashcard.");
-    String answerId = UUID.randomUUID().toString();
-    options.add(new QuizOption(answerId, answer));
-    Collections.shuffle(options);
-    return new QuizState(owner.id(), cardId, UUID.randomUUID().toString(), card.text("expression"),
-        List.copyOf(options), answerId, Instant.now().plusSeconds(600));
-  }
-
   @Transactional
-  public Attempt review(AccountPrincipal owner, long cardId, ReviewInput input, QuizState question) {
+  public Attempt review(AccountPrincipal owner, long cardId, ReviewInput input) {
     lockOwner(owner);
     var card = ownedCard(owner, cardId);
-    if (input.mode() == Mode.FLASHCARD && (input.result() == null || input.optionId() != null)
-        || input.mode() == Mode.QUICK_QUIZ && (input.result() != null || input.optionId() == null))
+    boolean valid = switch (input.mode()) {
+      case FLASHCARD -> input.result() != null && input.optionId() == null
+          && input.rating() == null && input.scheduleVersion() == null;
+      case QUICK_QUIZ -> false; // Historical rows remain readable; new quizzes are retired.
+      case SPACED_REVIEW -> input.result() == null && input.optionId() == null
+          && input.rating() != null && input.scheduleVersion() != null && input.scheduleVersion() >= 0;
+    };
+    if (!valid)
       throw new ApiException(400, "INVALID_REVIEW_ANSWER", "Thông tin lượt ôn không hợp lệ.");
-    String fingerprint = fingerprint(input.mode().name() + ":" + input.result() + ":" + input.optionId());
+    boolean spaced = input.mode() == Mode.SPACED_REVIEW;
+    if (spaced) requireSpaced();
+    String fingerprint = fingerprint(spaced
+        ? input.mode().name() + ":" + input.rating() + ":" + input.scheduleVersion()
+        : input.mode().name() + ":" + input.result() + ":" + input.optionId());
     var prior = notebook.prior(cardId, input.clientRequestId());
     if (prior.isPresent()) {
       var attempt = NotebookRepository.attempt(prior.get());
@@ -116,14 +130,44 @@ public class NotebookService {
     }
     if (input.mode() == Mode.FLASHCARD)
       return notebook.addAttempt(cardId, input, input.result(), null, fingerprint);
+    if (spaced) return gradeScheduled(owner.id(), cardId, card, input, fingerprint);
 
-    if (question == null || question.ownerId() != owner.id() || question.cardId() != cardId
-        || !question.id().equals(input.clientRequestId()) || !question.expiresAt().isAfter(Instant.now()))
-      throw new ApiException(409, "QUIZ_EXPIRED", "Câu hỏi đã hết hạn. Hãy mở câu hỏi mới.");
-    if (question.options().stream().noneMatch(option -> option.id().equals(input.optionId())))
-      throw new ApiException(400, "INVALID_REVIEW_ANSWER", "Lựa chọn không thuộc câu hỏi.");
-    return notebook.addAttempt(cardId, input, Status.valueOf(card.text("status")),
-        question.correctOptionId().equals(input.optionId()), fingerprint);
+    throw new ApiException(400, "INVALID_REVIEW_ANSWER", "Chế độ ôn không còn được hỗ trợ.");
+  }
+
+  private Attempt gradeScheduled(long owner, long cardId, Row card, ReviewInput input, String fingerprint) {
+    if (card.number("schedule_version") != input.scheduleVersion())
+      throw new ApiException(409, "REVIEW_SCHEDULE_CHANGED", "Lịch thẻ đã thay đổi. Hãy tải lại đợt ôn.");
+    Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+    var due = (LocalDateTime) card.data().get("next_review_at");
+    if (input.scheduleVersion() > 0 && due != null && due.isAfter(utc(now)))
+      throw new ApiException(409, "REVIEW_NOT_DUE", "Thẻ chưa đến hạn ôn.");
+    if (input.scheduleVersion() == 0 && remainingNew(owner, reviewDay(owner, now)) == 0)
+      throw new ApiException(409, "NEW_REVIEW_LIMIT_REACHED", "Đã hết suất thẻ mới hôm nay.");
+    var next = SpacedReviewSchedule.next(input.rating(), (int) card.number("spaced_interval_days"), now);
+    return notebook.addScheduledAttempt(cardId, input, Status.valueOf(card.text("status")), fingerprint,
+        SpacedReviewSchedule.VERSION, next.days(), utc(now), utc(next.dueAt()));
+  }
+
+  private record ReviewDay(ZoneId zone, Instant start, Instant end) {}
+
+  private ReviewDay reviewDay(long owner, Instant now) {
+    var zone = ZoneId.of(notebook.timeZone(owner));
+    var date = now.atZone(zone).toLocalDate();
+    return new ReviewDay(zone, date.atStartOfDay(zone).toInstant(), date.plusDays(1).atStartOfDay(zone).toInstant());
+  }
+
+  private int remainingNew(long owner, ReviewDay day) {
+    return (int) Math.max(0, DAILY_NEW_LIMIT - notebook.firstReviews(owner, utc(day.start()), utc(day.end())));
+  }
+
+  private void requireSpaced() {
+    if (!spacedEnabled)
+      throw new ApiException(404, "SPACED_REVIEW_UNAVAILABLE", "Bản dựng này chưa hỗ trợ ôn theo lịch.");
+  }
+
+  private static LocalDateTime utc(Instant value) {
+    return LocalDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private Row ownedCard(AccountPrincipal owner, long cardId) {
@@ -140,11 +184,6 @@ public class NotebookService {
   private static void validatePage(int page, int size) {
     if (page < 0 || page > 100000 || size < 1 || size > 50)
       throw new ApiException(400, "INVALID_PAGINATION", "Trang hoặc kích thước trang không hợp lệ.");
-  }
-
-  private static String meaningKey(String value) {
-    return Normalizer.normalize(value, Normalizer.Form.NFC).strip().toLowerCase(Locale.ROOT)
-        .replaceAll("[.!?]+$", "").replaceAll("\\s+", " ");
   }
 
   private static String fingerprint(String value) {

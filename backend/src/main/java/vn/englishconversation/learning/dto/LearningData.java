@@ -21,7 +21,8 @@ public final class LearningData {
       String meaningVi,
       String exampleEn,
       String status,
-      String lastReviewedAt) {}
+      String lastReviewedAt,
+      String partOfSpeech) {}
 
   public record HistoryEntry(
       String id,
