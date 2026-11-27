@@ -23,14 +23,17 @@ public class PronunciationWorker {
   private final PronunciationProvider provider;
   private final PronunciationService service;
   private final TransactionTemplate tx;
+  private final java.util.Optional<vn.englishconversation.learning.service.ProgressService> progress;
 
   public PronunciationWorker(PronunciationRepository store, PronunciationAudio audio, PronunciationProvider provider,
-      PronunciationService service, TransactionTemplate tx) {
+      PronunciationService service, TransactionTemplate tx,
+      java.util.Optional<vn.englishconversation.learning.service.ProgressService> progress) {
     this.store = store;
     this.audio = audio;
     this.provider = provider;
     this.service = service;
     this.tx = tx;
+    this.progress = progress;
   }
 
   @Scheduled(fixedDelayString = "${app.pronunciation.poll-ms:2000}")
@@ -76,6 +79,7 @@ public class PronunciationWorker {
     tx.executeWithoutResult(transaction -> {
       if (store.lockActiveUser(job.user()) && store.ownsClaim(job)) {
         store.complete(job, score, finalStatus, finalError, scheduleRetry, latency);
+        if ("SUCCEEDED".equals(finalStatus)) progress.ifPresent(service -> service.pronunciationScored(job.user(), job.id()));
 
       }
     });

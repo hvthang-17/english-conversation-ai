@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
-import vn.englishconversation.auth.service.AccountLifecycleService;
+import vn.englishconversation.mail.provider.MailGateway;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.common.repository.JdbcStore;
@@ -35,15 +35,15 @@ public class PracticeScheduleService {
 
   private final JdbcStore db;
   private final UserRepository users;
-  private final AccountLifecycleService lifecycle;
+  private final MailGateway mail;
   private final boolean remindersEnabled;
 
   public PracticeScheduleService(
-      JdbcStore db, UserRepository users, AccountLifecycleService lifecycle,
+      JdbcStore db, UserRepository users, MailGateway mail,
       @Value("${app.mail.reminders-enabled:true}") boolean remindersEnabled) {
     this.db = db;
     this.users = users;
-    this.lifecycle = lifecycle;
+    this.mail = mail;
     this.remindersEnabled = remindersEnabled;
   }
 
@@ -69,7 +69,7 @@ public class PracticeScheduleService {
         row.text("time_zone"),
         enabled,
         row.flag("email_reminder_enabled"),
-        remindersEnabled && lifecycle.mailAvailable(),
+        remindersEnabled && mail.available(),
         enabled
             ? next(days, LocalTime.parse(time), ZoneId.of(row.text("time_zone")), Instant.now())
             : null);

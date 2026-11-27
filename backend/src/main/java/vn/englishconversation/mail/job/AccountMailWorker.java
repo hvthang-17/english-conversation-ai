@@ -8,6 +8,7 @@ import java.util.*;
 import org.springframework.context.annotation.Profile;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mail.MailSendException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,6 +29,7 @@ public class AccountMailWorker {
   private final AccountLifecycleService lifecycle;
   private final TransactionTemplate tx;
   private final boolean remindersEnabled;
+  private final boolean inAppReminders;
 
   public AccountMailWorker(
       JdbcStore db,
@@ -36,6 +38,7 @@ public class AccountMailWorker {
       TokenCipher cipher,
       AccountLifecycleService lifecycle,
       PlatformTransactionManager manager,
+      org.springframework.core.env.Environment environment,
       @Value("${app.mail.reminders-enabled:true}") boolean remindersEnabled) {
     this.db = db;
     this.jdbc = jdbc;
@@ -44,16 +47,15 @@ public class AccountMailWorker {
     this.lifecycle = lifecycle;
     tx = new TransactionTemplate(manager);
     this.remindersEnabled = remindersEnabled;
+    this.inAppReminders = environment.matchesProfiles("g6");
   }
 
   @Scheduled(fixedDelayString = "${app.mail.poll-ms:60000}")
   public void tick() {
-    if (!lifecycle.mailAvailable()) return;
-    sendBatch("account_mail_outbox");
-    if (remindersEnabled) {
-      generate(Instant.now());
-      sendBatch("practice_reminder_deliveries");
-    }
+    boolean smtp = mail.available();
+    if (lifecycle.mailAvailable()) sendBatch("account_mail_outbox");
+    if (inAppReminders || (smtp && remindersEnabled)) generate(Instant.now());
+    if (smtp && remindersEnabled) sendBatch("practice_reminder_deliveries");
   }
 
   public void generate(Instant now) {
@@ -63,7 +65,7 @@ public class AccountMailWorker {
       var rows =
           db.rows(
               "SELECT s.* FROM practice_schedules s JOIN users u ON u.id=s.user_id WHERE s.id>? AND"
-                  + " s.enabled=TRUE AND s.email_reminder_enabled=TRUE AND u.status='ACTIVE' AND"
+                  + " s.enabled=TRUE AND u.status='ACTIVE' AND"
                   + " u.deletion_requested_at IS NULL ORDER BY"
                   + " s.id LIMIT 200",
               after);
@@ -91,6 +93,9 @@ public class AccountMailWorker {
                   row.number("version"),
                   Timestamp.from(at))
               == 0) continue;
+          if (inAppReminders) inAppReminder(row, at);
+          if (!row.flag("email_reminder_enabled")) continue;
+          if (inAppReminders && (!remindersEnabled || !mail.available())) continue;
           jdbc.update(
               "INSERT IGNORE INTO"
                   + " practice_reminder_deliveries(schedule_id,schedule_version,scheduled_for,expires_at,next_attempt_at,created_at)"
@@ -105,7 +110,40 @@ public class AccountMailWorker {
     }
   }
 
+  private void inAppReminder(Row schedule, Instant at) {
+    jdbc.update("""
+        INSERT IGNORE INTO notifications(user_id,kind,dedupe_key,title,body,created_at)
+        SELECT s.user_id,'REMINDER',?,'Đến giờ học tiếng Anh','Mở Hôm nay để chọn việc bạn muốn luyện.',UTC_TIMESTAMP(6)
+        FROM practice_schedules s JOIN users u ON u.id=s.user_id
+        WHERE s.id=? AND s.version=? AND s.enabled AND u.status='ACTIVE' AND u.deletion_requested_at IS NULL
+        """, "reminder:" + schedule.number("id") + ":" + at, schedule.number("id"), schedule.number("version"));
+  }
+
+  private static boolean connectionFailedBeforeSend(Throwable error) {
+    if (error instanceof MailSendException sendFailure) {
+      // JavaMailSender can put the transport error in its per-message result.
+      Exception[] messageFailures = sendFailure.getMessageExceptions();
+      if (messageFailures.length > 0) {
+        return messageFailures.length == 1 && hasConnectionFailure(messageFailures[0]);
+      }
+    }
+    return hasConnectionFailure(error);
+  }
+
+  private static boolean hasConnectionFailure(Throwable error) {
+    for (Throwable cause = error; cause != null; cause = cause.getCause())
+      if (cause instanceof java.net.ConnectException || cause instanceof java.net.UnknownHostException) return true;
+    return false;
+  }
+
   private void sendBatch(String table) {
+    boolean reminder = table.equals("practice_reminder_deliveries");
+    if (reminder) db.update("""
+        UPDATE practice_reminder_deliveries SET status='UNKNOWN',error_code='DELIVERY_UNKNOWN',lease_until=NULL
+        WHERE status='PROCESSING' AND lease_until<UTC_TIMESTAMP(6)
+        """);
+    String reclaim = reminder ? "" : " OR (status='PROCESSING' AND lease_until<UTC_TIMESTAMP(6))";
+
     db.update(
         "UPDATE "
             + table
@@ -117,8 +155,8 @@ public class AccountMailWorker {
             "SELECT id FROM "
                 + table
                 + " WHERE expires_at>UTC_TIMESTAMP(6) AND attempt_count<3 AND ((status IN"
-                + " ('PENDING','RETRY') AND next_attempt_at<=UTC_TIMESTAMP(6)) OR"
-                + " (status='PROCESSING' AND lease_until<UTC_TIMESTAMP(6))) ORDER BY id LIMIT 50");
+                + " ('PENDING','RETRY') AND next_attempt_at<=UTC_TIMESTAMP(6))"
+                  + reclaim + ") ORDER BY id LIMIT 50");
     for (var row : rows) {
       String claim = UUID.randomUUID().toString();
       long id = row.number("id");
@@ -129,8 +167,8 @@ public class AccountMailWorker {
                   + " SET status='PROCESSING',claim_token=?,lease_until=UTC_TIMESTAMP(6)+INTERVAL 2"
                   + " MINUTE,attempt_count=attempt_count+1 WHERE id=? AND"
                   + " expires_at>UTC_TIMESTAMP(6) AND attempt_count<3 AND ((status IN"
-                  + " ('PENDING','RETRY') AND next_attempt_at<=UTC_TIMESTAMP(6)) OR"
-                  + " (status='PROCESSING' AND lease_until<UTC_TIMESTAMP(6)))",
+                  + " ('PENDING','RETRY') AND next_attempt_at<=UTC_TIMESTAMP(6))"
+                  + reclaim + ")",
               claim,
               id);
       if (claimed == 0) continue;
@@ -172,6 +210,14 @@ public class AccountMailWorker {
         }
         finish(table, id, claim, "SENT", null);
       } catch (Exception failure) {
+        if (reminder && failure instanceof org.springframework.mail.MailAuthenticationException) {
+          finish(table,id,claim,"FAILED","MAIL_AUTH_FAILED");
+          continue;
+        }
+        if (reminder && !connectionFailedBeforeSend(failure)) {
+          finish(table,id,claim,"UNKNOWN","DELIVERY_UNKNOWN");
+          continue;
+        }
         jdbc.update(
             "UPDATE "
                 + table
@@ -211,7 +257,7 @@ public class AccountMailWorker {
                 + " JOIN users u ON u.id=s.user_id LEFT JOIN learner_profiles p ON p.user_id=u.id"
                 + " WHERE d.id=? AND d.claim_token=? AND d.status='PROCESSING' AND"
                 + " d.expires_at>UTC_TIMESTAMP(6) AND d.schedule_version=s.version AND"
-                + " s.enabled=TRUE AND s.email_reminder_enabled=TRUE AND u.status='ACTIVE' AND"
+                + " s.enabled=TRUE AND u.status='ACTIVE' AND"
                 + " u.deletion_requested_at IS NULL",
             id,
             claim)
@@ -242,11 +288,11 @@ public class AccountMailWorker {
         "DELETE FROM account_action_tokens WHERE (consumed_at IS NOT NULL OR"
             + " expires_at<=UTC_TIMESTAMP(6)) AND created_at<UTC_TIMESTAMP(6)-INTERVAL 30 DAY");
     db.update(
-        "DELETE FROM account_mail_outbox WHERE status IN ('SENT','FAILED','CANCELLED','EXPIRED')"
+        "DELETE FROM account_mail_outbox WHERE status IN ('SENT','FAILED','CANCELLED','EXPIRED','UNKNOWN')"
             + " AND created_at<UTC_TIMESTAMP(6)-INTERVAL 30 DAY");
     db.update(
         "DELETE FROM practice_reminder_deliveries WHERE status IN"
-            + " ('SENT','FAILED','CANCELLED','EXPIRED') AND created_at<UTC_TIMESTAMP(6)-INTERVAL 30"
+            + " ('SENT','FAILED','CANCELLED','EXPIRED','UNKNOWN') AND created_at<UTC_TIMESTAMP(6)-INTERVAL 30"
             + " DAY");
     db.update(
         "DELETE FROM account_rate_limits WHERE window_start<UTC_DATE() AND last_request_at<UTC_TIMESTAMP(6)-INTERVAL 2 HOUR");

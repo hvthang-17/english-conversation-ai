@@ -5,12 +5,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: false
-    target: 19
+    target: 29
 app:
   gemini:
     enabled: ${GEMINI_CHAT_ENABLED:false}
   mail:
-    reminders-enabled: false
+    reminders-enabled: ${MAIL_REMINDERS_ENABLED:false}
   listening:
     audio-directory: ${LISTENING_AUDIO_DIRECTORY:.runtime/listening}
     azure:
