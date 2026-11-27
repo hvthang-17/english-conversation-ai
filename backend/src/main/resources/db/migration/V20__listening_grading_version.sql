@@ -1,0 +1,2 @@
+ALTER TABLE listening_attempts
+  ADD COLUMN grading_version SMALLINT UNSIGNED NOT NULL DEFAULT 1;

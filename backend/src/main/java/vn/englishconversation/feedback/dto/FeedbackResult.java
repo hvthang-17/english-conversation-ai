@@ -19,5 +19,6 @@ public record FeedbackResult(
       String explanationVi) {}
 
   public record Suggestion(
-      String itemType, String expression, String meaningVi, String exampleEn) {}
+      String itemType, String expression, String meaningVi, String exampleEn,
+      vn.englishconversation.lesson.dto.PartOfSpeech partOfSpeech) {}
 }

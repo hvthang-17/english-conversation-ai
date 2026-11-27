@@ -3,6 +3,8 @@ package vn.englishconversation.feedback.repository;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import vn.englishconversation.learning.repository.ProgressRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
@@ -17,8 +19,11 @@ public class FeedbackStore {
   private final JdbcStore db;
   private final ObjectMapper json = new ObjectMapper();
 
-  public FeedbackStore(JdbcStore db) {
+  private final Optional<ProgressRepository> progress;
+
+  public FeedbackStore(JdbcStore db, Optional<ProgressRepository> progress) {
     this.db = db;
+    this.progress = progress;
   }
 
   public void create(long session, long operation) {
@@ -65,15 +70,16 @@ original_text,suggested_text,explanation_vi,sort_order) VALUES (?,?,?,?,?,?,?,?,
     for (var suggestion : result.suggestions()) {
       db.insert(
           """
-INSERT INTO feedback_suggestions(feedback_id,item_type,expression,meaning_vi,example_en,sort_order)
-VALUES (?,?,?,?,?,?)
+INSERT INTO feedback_suggestions(feedback_id,item_type,expression,meaning_vi,example_en,sort_order,part_of_speech)
+VALUES (?,?,?,?,?,?,?)
 """,
           id,
           suggestion.itemType(),
           suggestion.expression(),
           suggestion.meaningVi(),
           suggestion.exampleEn(),
-          order++);
+          order++,
+          suggestion.partOfSpeech().name());
     }
     db.update(
         """
@@ -85,6 +91,9 @@ generated_at=UTC_TIMESTAMP(6),updated_at=UTC_TIMESTAMP(6) WHERE id=?
         result.goalAssessment(),
         result.nextPractice(),
         id);
+    progress.ifPresent(inbox -> db.find("SELECT user_id FROM practice_sessions WHERE id=?",session)
+        .ifPresent(owner -> inbox.notify(owner.number("user_id"),"RESULT","feedback:" + session,
+            "Đã có nhận xét hội thoại","Mở lịch sử luyện tập để xem nhận xét của buổi.")));
   }
 
   public FeedbackResponse view(long session, int maxAttempts) {
@@ -132,7 +141,9 @@ generated_at=UTC_TIMESTAMP(6),updated_at=UTC_TIMESTAMP(6) WHERE id=?
                             item.text("item_type"),
                             item.text("expression"),
                             item.text("meaning_vi"),
-                            item.text("example_en")))
+                            item.text("example_en"),
+                            item.text("part_of_speech") == null ? null :
+                                vn.englishconversation.lesson.dto.PartOfSpeech.valueOf(item.text("part_of_speech"))))
                 .toList(),
             row.text("next_practice"));
     return new FeedbackResponse(

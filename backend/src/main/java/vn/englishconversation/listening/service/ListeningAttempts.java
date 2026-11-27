@@ -28,11 +28,14 @@ public class ListeningAttempts {
   private final ListeningRepository store;
   private final UserRepository users;
   private final ObjectMapper json;
+  private final java.util.Optional<vn.englishconversation.learning.service.ProgressService> progress;
 
-  public ListeningAttempts(ListeningRepository store, UserRepository users, ObjectMapper json) {
+  public ListeningAttempts(ListeningRepository store, UserRepository users, ObjectMapper json,
+      java.util.Optional<vn.englishconversation.learning.service.ProgressService> progress) {
     this.store = store;
     this.users = users;
     this.json = json;
+    this.progress = progress;
   }
 
   @Transactional(readOnly = true)
@@ -105,6 +108,7 @@ public class ListeningAttempts {
     }
     var grades = ListeningRules.grade(questions, answers);
     store.submit(id, grades.stream().mapToInt(Graded::pointsAwarded).sum(), json.writeValueAsString(grades));
+    progress.ifPresent(service -> service.listeningSubmitted(owner.id(), id));
     return get(owner, id);
   }
 
