@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.JsonNode;
 import vn.englishconversation.admin.dto.AdminPage;
 import vn.englishconversation.admin.dto.MaterialKind;
+import vn.englishconversation.admin.dto.LessonCatalogOptions;
+import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.admin.service.MaterialAdminService;
 import vn.englishconversation.auth.security.AccountPrincipal;
 
@@ -21,8 +23,15 @@ public class MaterialAdminController {
 
   @GetMapping
   public AdminPage<Map<String, Object>> list(@PathVariable MaterialKind kind,
-      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "12") int size) {
-    return materials.list(kind, page, size);
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "12") int size,
+      @RequestParam(required = false) String expressionKind) {
+    return materials.list(kind, page, size, expressionKind);
+  }
+
+  @GetMapping("/lesson-catalog-options")
+  public LessonCatalogOptions lessonCatalogOptions(@PathVariable MaterialKind kind) {
+    if (kind != MaterialKind.LESSONS) throw new ApiException(404, "MATERIAL_NOT_FOUND", "Không tìm thấy danh mục.");
+    return materials.lessonCatalogOptions();
   }
 
   @PostMapping

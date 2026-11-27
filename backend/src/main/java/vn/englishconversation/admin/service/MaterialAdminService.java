@@ -10,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.admin.dto.AdminPage;
 import vn.englishconversation.admin.dto.MaterialKind;
+import vn.englishconversation.admin.dto.LessonCatalogOptions;
 import vn.englishconversation.admin.repository.AdminAudit;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
@@ -37,8 +38,40 @@ public class MaterialAdminService {
     this.audit = audit;
   }
 
+  @Transactional(readOnly = true)
+  public LessonCatalogOptions lessonCatalogOptions() {
+    var topics = db.rows("SELECT id,name,is_active FROM topics ORDER BY sort_order,name,id").stream()
+        .map(row -> new LessonCatalogOptions.Topic(row.text("id"), row.text("name"), row.flag("is_active")))
+        .toList();
+    var scenarios = db.rows("""
+        SELECT s.id,s.title,s.topic_id,t.name AS topic_name,(s.status='ACTIVE' AND t.is_active) AS visible,
+           (SELECT GROUP_CONCAT(l.level ORDER BY l.level) FROM scenario_levels l WHERE l.scenario_id=s.id) AS levels
+        FROM scenarios s JOIN topics t ON t.id=s.topic_id
+        ORDER BY s.title,s.id
+        """).stream().map(row -> new LessonCatalogOptions.Scenario(row.text("id"), row.text("title"),
+        row.text("topic_id"), row.text("topic_name"), row.flag("visible"),
+        row.text("levels") == null ? List.of() : List.of(row.text("levels").split(",")))).toList();
+    var lessons = db.rows("""
+        SELECT l.id,l.title,l.topic_id,l.level,(l.status='ACTIVE' AND t.is_active) AS visible
+        FROM lessons l JOIN topics t ON t.id=l.topic_id ORDER BY l.title,l.id
+        """).stream().map(row -> new LessonCatalogOptions.Lesson(row.text("id"), row.text("title"),
+        row.text("topic_id"), row.text("level"), row.flag("visible"))).toList();
+    return new LessonCatalogOptions(topics, scenarios, lessons);
+  }
+
   public AdminPage<Map<String, Object>> list(MaterialKind kind, int page, int size) {
+    return list(kind, page, size, null);
+  }
+
+  public AdminPage<Map<String, Object>> list(MaterialKind kind, int page, int size, String expressionKind) {
     if (page < 0 || size < 1 || size > 50) throw invalid("Trang hoặc kích thước trang không hợp lệ.");
+    if (expressionKind != null) {
+      if (kind != MaterialKind.WORDS || !Set.of("WORD", "PHRASE").contains(expressionKind))
+        throw invalid("Loại từ hoặc mẫu câu không hợp lệ.");
+      return new AdminPage<>(db.rows("SELECT * FROM " + kind.table + " WHERE kind=? ORDER BY id DESC LIMIT ? OFFSET ?",
+          expressionKind, size, (long) page * size).stream().map(row -> view(kind, row)).toList(),
+          page, size, db.count("SELECT COUNT(*) FROM " + kind.table + " WHERE kind=?", expressionKind));
+    }
     return new AdminPage<>(db.rows("SELECT * FROM " + kind.table + " ORDER BY id DESC LIMIT ? OFFSET ?",
         size, (long) page * size).stream().map(row -> view(kind, row)).toList(),
         page, size, db.count("SELECT COUNT(*) FROM " + kind.table));
@@ -160,6 +193,8 @@ public class MaterialAdminService {
       }
       case WORDS -> {
         String type = choice(data, "kind", "WORD", "PHRASE");
+        if (data.get("part_of_speech") != null)
+          choice(data, "part_of_speech", vn.englishconversation.lesson.dto.PartOfSpeech.codes());
         text(data, "expression", 200, true);
         String ipa = text(data, "ipa", 240, publish && type.equals("WORD"));
         if (ipa != null && (!ipa.matches("/[\\p{L}\\p{M} .ˈˌːˑ‿͡-]+/") || ipa.codePoints().noneMatch(Character::isLetter)))

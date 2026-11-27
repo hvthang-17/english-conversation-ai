@@ -5,7 +5,7 @@ import java.util.List;
 
 public record LessonMaterials(List<Item> items, List<Dialogue> dialogues) {
   public record Item(String id, String kind, String expression, String ipa, String meaningVi,
-                     String exampleEn, String exampleVi, String savedCardId) {}
+                     String exampleEn, String exampleVi, String savedCardId, String partOfSpeech) {}
 
   public record Dialogue(String id, String title, List<Line> lines) {}
 

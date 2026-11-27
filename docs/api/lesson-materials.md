@@ -8,12 +8,12 @@ Tiền tố `/api/v1`. Các API dùng Session cookie. Thao tác ghi cần CSRF t
 | `GET /learning/notebook?status=&page=0&size=12` | Trang thẻ của người đăng nhập. Có thể lọc `NEEDS_REVIEW` hoặc `REMEMBERED`. |
 | `POST /learning/notebook/from-language-item/{id}` | Lưu bản sao từ nguồn đang công khai. Gửi lại trả thẻ đã có của cùng chủ sở hữu. |
 | `DELETE /learning/notebook/{id}` | Trả 204 và xóa các lượt ôn của thẻ. |
-| `GET /learning/notebook/{id}/attempts?page=0&size=12` | Lịch sử ôn phân trang theo thời điểm, mới nhất trước. |
-| `POST /learning/notebook/{id}/quiz` | Tạo câu hỏi có ba lựa chọn, mỗi lựa chọn có `id` và `meaningVi`. Trả thêm `id` câu hỏi, `expression`, `expiresAt`. |
 | `POST /learning/notebook/{id}/attempts` | Chấm hoặc ghi lượt ôn. Trả `id`, `mode`, `result`, `correct`, `reviewedAt`. |
 | `DELETE /learning/data` | Xóa dấu bài học, thẻ và các lượt ôn. Giữ tài khoản, hồ sơ và lịch học. |
 
 Một mục học liệu có `kind`, `expression`, `ipa`, `meaningVi`, `exampleEn`, `exampleVi` và `savedCardId` theo tài khoản. Mỗi đoạn mẫu có tiêu đề và các lượt gồm `line_no`, `speaker_label`, `text_en`, `text_vi`, `voice_key` tùy chọn. Trình duyệt phát cục bộ từ `text_en`.
+
+Mục học liệu và bản sao trong sổ tay trả thêm `partOfSpeech`. Trường có thể trống với mục chưa phân loại. Các mã gồm nhóm từ như `NOUN`, `VERB`, `ADVERB` và nhóm cấu trúc như `NOUN_PHRASE`, `PHRASAL_VERB`, `SENTENCE`. Admin đặt mã qua trường `part_of_speech` ở form học liệu.
 
 ### Ghi lượt ôn
 
@@ -23,10 +23,18 @@ Một mục học liệu có `kind`, `expression`, `ipa`, `meaningVi`, `exampleE
 
 Flashcard chấp nhận `REMEMBERED` hoặc `NEEDS_REVIEW`, lưu lựa chọn và thời điểm ôn trong cùng giao dịch. Trường `correct` trả `null`.
 
+Sổ tay chỉ lưu/tra cứu/xóa mục. API tạo quiz và đọc lịch sử từng thẻ đã bỏ vì không còn nơi sử dụng. `QUICK_QUIZ` không nhận lượt mới (400 `INVALID_REVIEW_ANSWER`); mã mode vẫn giữ để đọc dữ liệu lịch sử cũ.
+
+Gửi lại cùng mã và nội dung trả kết quả đã ghi. Đổi nội dung với mã đã ghi trả 409 `REQUEST_ID_REUSED`. Thẻ thuộc tài khoản khác trả 404 khi đọc chi tiết, nộp hoặc xóa.
+
+### Ôn ngắt quãng
+
+Trong profile `g6`, `GET /api/v1/learning/notebook/spaced?limit=20` trả thẻ đến hạn trước, sau đó là thẻ chưa từng chấm theo lịch. Giới hạn đợt từ 1–20 thẻ và tối đa 10 lượt chấm thẻ mới mỗi ngày theo múi giờ lịch luyện. Phản hồi gồm `dueCount`, `newCount`, `newEligibleCount`, `newRemainingToday`, `nextDueAt`, `nextLocalDayAt`, `timeZone` và `items`. Mỗi mục có `card`, `nextReviewAt` và `scheduleVersion`.
+
 ```json
-{"mode":"QUICK_QUIZ","clientRequestId":"<id câu hỏi>","optionId":"<id lựa chọn>"}
+{"mode":"SPACED_REVIEW","rating":"GOOD","scheduleVersion":0,"clientRequestId":"review-request-01"}
 ```
 
-Câu hỏi có hiệu lực tối đa 10 phút trong phiên phát hành. Backend chấm từ lựa chọn, cập nhật thời điểm ôn và giữ trạng thái hiện tại của thẻ trong `result`. `correct` là đúng/sai. Khi nhận `QUIZ_EXPIRED`, học viên có thể mở câu hỏi mới. `QUIZ_UNAVAILABLE` nghĩa là chưa chọn được đủ phương án phân biệt. Học viên vẫn dùng được flashcard.
+Nộp vào `POST /learning/notebook/{id}/attempts`. Rating nhận `AGAIN`, `HARD`, `GOOD` hoặc `EASY`. Kết quả có `rating`, `intervalDays`, `algorithmVersion`, `scheduleVersion` và `nextReviewAt`. Các mốc hẹn dùng UTC. Gửi lại nguyên yêu cầu trả đúng lượt đã ghi. Lịch đã đổi, thẻ chưa đến hạn và hết suất báo HTTP 409 với mã lần lượt là `REVIEW_SCHEDULE_CHANGED`, `REVIEW_NOT_DUE` và `NEW_REVIEW_LIMIT_REACHED`. Thẻ đã xóa hoặc của owner khác trả 404. Flashcard tự đánh dấu độc lập với lịch ngắt quãng. Các endpoint ghi lượt và hàng đợi phục vụ tab Ôn tập.
 
-Gửi lại cùng mã và nội dung trả kết quả đã ghi. Đổi nội dung với mã đã ghi trả 409 `REQUEST_ID_REUSED`. Thẻ thuộc tài khoản khác trả 404 cho đọc lịch sử, tạo quiz, nộp hoặc xóa.
+GET /api/v1/learning/notebook/{id} trả chi tiết thẻ của chủ phiên. Màn Hôm nay dùng endpoint này để mở đúng thẻ. Thẻ bị xóa hoặc thuộc tài khoản khác trả 404.

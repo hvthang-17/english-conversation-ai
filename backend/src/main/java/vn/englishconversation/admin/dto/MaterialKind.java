@@ -6,7 +6,7 @@ public enum MaterialKind {
   TOPICS("topics", "code name description sort_order", "user_topic_interests:topic_id scenarios:topic_id lessons:topic_id"),
   LESSONS("lessons", "topic_id level scenario_id title summary objective_code learning_objective",
       "lesson_bookmarks:lesson_id language_items:lesson_id sample_dialogues:lesson_id listening_exercises:lesson_id pronunciation_drills:lesson_id"),
-  WORDS("language_items", "lesson_id kind expression ipa meaning_vi example_en example_vi sort_order",
+  WORDS("language_items", "lesson_id kind expression ipa meaning_vi example_en example_vi part_of_speech sort_order",
       "review_items:source_language_item_id"),
   DIALOGUES("sample_dialogues", "lesson_id title lines_json sort_order", ""),
   LISTENING("listening_exercises",

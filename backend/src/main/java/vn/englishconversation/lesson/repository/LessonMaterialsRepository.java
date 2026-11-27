@@ -34,7 +34,7 @@ public class LessonMaterialsRepository {
         ORDER BY i.sort_order,i.id
         """, ownerId, lessonId).stream()
         .map(i -> new Item(i.text("id"), i.text("kind"), i.text("expression"), i.text("ipa"),
-            i.text("meaning_vi"), i.text("example_en"), i.text("example_vi"), i.text("saved_card_id")))
+            i.text("meaning_vi"), i.text("example_en"), i.text("example_vi"), i.text("saved_card_id"), i.text("part_of_speech")))
         .toList();
   }
 
@@ -47,19 +47,10 @@ public class LessonMaterialsRepository {
 
   public Optional<Row> lockVisibleItem(long itemId) {
     return db.find("""
-        SELECT i.kind,i.expression,i.meaning_vi,i.example_en,i.ipa FROM language_items i
+        SELECT i.* FROM language_items i
         JOIN lessons l ON l.id=i.lesson_id JOIN topics t ON t.id=l.topic_id
         WHERE i.id=? AND i.status='ACTIVE' AND
         """ + VISIBLE + " FOR SHARE", itemId);
   }
 
-  public List<String> quizMeanings(String kind, Long sourceId) {
-    return db.rows("""
-        SELECT i.meaning_vi FROM language_items i
-        JOIN lessons l ON l.id=i.lesson_id JOIN topics t ON t.id=l.topic_id
-        LEFT JOIN language_items source ON source.id=?
-        WHERE i.kind=? AND i.status='ACTIVE' AND
-        """ + VISIBLE + " ORDER BY (i.lesson_id=source.lesson_id) DESC, i.id LIMIT 40",
-        sourceId, kind).stream().map(row -> row.text("meaning_vi")).toList();
-  }
 }
