@@ -27,10 +27,15 @@ public class AdminAudit {
 
   @Transactional(propagation = Propagation.MANDATORY)
   public void catalog(long actor, String targetType, long target, boolean created) {
+    record(actor,targetType + (created ? "_CREATED" : "_UPDATED"),targetType,target);
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public void record(long actor, String action, String targetType, long target) {
     db.update("""
         INSERT INTO admin_audit_logs(actor_user_id,action,target_type,target_id,created_at)
         VALUES (?,?,?,?,UTC_TIMESTAMP(6))
-        """, actor, targetType + (created ? "_CREATED" : "_UPDATED"), targetType, target);
+        """, actor, action, targetType, target);
   }
 
   @Transactional(propagation = Propagation.MANDATORY)

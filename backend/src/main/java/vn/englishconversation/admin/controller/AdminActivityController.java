@@ -6,45 +6,55 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.admin.dto.AdminActivity;
+import vn.englishconversation.admin.dto.AdminPage;
+import vn.englishconversation.admin.dto.AdminMetrics;
+import vn.englishconversation.admin.service.AdminActivityService;
+import vn.englishconversation.admin.service.AdminMetricsService;
 
 @RestController
 @RequestMapping("/api/v1/admin")
 @Profile("g6")
 public class AdminActivityController {
-  private final JdbcStore db;
-
-  public AdminActivityController(JdbcStore db) {
-    this.db = db;
+  private final AdminActivityService activity;
+  private final AdminMetricsService metrics;
+  public AdminActivityController(AdminActivityService activity,AdminMetricsService metrics) {
+    this.activity=activity;
+    this.metrics=metrics;
   }
 
-  @GetMapping("/audit")
-  public ResponseEntity<List<Activity>> audit() {
-    return response("""
-        SELECT id,action AS activity,target_type AS subject,CAST(target_id AS CHAR) AS reference,
-          CAST(actor_user_id AS CHAR) AS actor,NULL AS status,NULL AS latency,created_at AS occurred
-        FROM admin_audit_logs ORDER BY id DESC LIMIT 50
-        """);
+  @GetMapping("/metrics")
+  public ResponseEntity<AdminMetrics> metrics(@RequestParam(defaultValue="7") int days) {
+    return noStore(metrics.metrics(days));
   }
 
-  @GetMapping("/ai-attempts")
-  public ResponseEntity<List<Activity>> attempts() {
-    return response("""
-        SELECT a.id,r.task_type AS activity,a.provider AS subject,a.model_name AS reference,
-          NULL AS actor,a.status,a.latency_ms AS latency,a.started_at AS occurred
-        FROM ai_attempts a JOIN ai_requests r ON r.id=a.ai_request_id
-        ORDER BY a.id DESC LIMIT 50
-        """);
+  @GetMapping(value = "/audit", params = "!page")
+  public ResponseEntity<List<AdminActivity>> audit() {
+    return noStore(activity.list(true, 0, 50, "", "").items());
   }
 
-  private ResponseEntity<List<Activity>> response(String sql) {
-    var items = db.rows(sql).stream().map(row -> new Activity(row.text("id"), row.text("activity"),
-        row.text("subject"), row.text("reference"), row.text("actor"), row.text("status"),
-        row.text("latency"), row.text("occurred"))).toList();
-    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(items);
+  @GetMapping(value = "/ai-attempts", params = "!page")
+  public ResponseEntity<List<AdminActivity>> attempts() {
+    return noStore(activity.list(false, 0, 50, "", "").items());
   }
 
-  public record Activity(String id, String activity, String subject, String reference, String actor,
-                         String status, String latency, String occurred) {}
+  @GetMapping(value = "/audit", params = "page")
+  public ResponseEntity<AdminPage<AdminActivity>> auditPage(@RequestParam int page,
+      @RequestParam(defaultValue = "12") int size, @RequestParam(defaultValue = "") String q,
+      @RequestParam(required=false) Integer days) {
+    return noStore(activity.list(true, page, size, q, "", days));
+  }
+
+  @GetMapping(value = "/ai-attempts", params = "page")
+  public ResponseEntity<AdminPage<AdminActivity>> attemptsPage(@RequestParam int page,
+      @RequestParam(defaultValue = "12") int size, @RequestParam(defaultValue = "") String q,
+      @RequestParam(defaultValue = "") String status, @RequestParam(required=false) Integer days) {
+    return noStore(activity.list(false, page, size, q, status, days));
+  }
+
+  private <T> ResponseEntity<T> noStore(T body) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
+  }
 }
