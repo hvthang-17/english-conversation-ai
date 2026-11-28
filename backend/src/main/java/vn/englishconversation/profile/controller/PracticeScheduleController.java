@@ -1,14 +1,14 @@
 package vn.englishconversation.profile.controller;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.profile.service.PracticeScheduleService;
 
 @RestController
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 @RequestMapping("/api/v1/profile/me/practice-schedule")
 public class PracticeScheduleController {
   private final PracticeScheduleService schedules;

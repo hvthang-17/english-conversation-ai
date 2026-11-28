@@ -1,7 +1,7 @@
 package vn.englishconversation.profile.controller;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.englishconversation.auth.security.AccountPrincipal;
@@ -10,7 +10,7 @@ import vn.englishconversation.profile.service.ProfileService;
 
 @RestController
 @RequestMapping("/api/v1/profile/me")
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class ProfileController {
   private final ProfileService profiles;
 

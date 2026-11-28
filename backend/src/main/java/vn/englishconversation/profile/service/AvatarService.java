@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.*;
 import javax.imageio.ImageIO;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -17,30 +17,49 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.profile.repository.AvatarRepository;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AvatarService {
+  private final AvatarRepository persistence;
+  public static final String API_PATH = "/api/v1/profile/me/avatar";
   private final Path root;
-  private final JdbcStore db;
+  private final Path legacyRoot;
   private final UserRepository users;
   private final TransactionTemplate tx;
 
-  public AvatarService(
-      @Value("${app.account.avatar-directory:.runtime/avatars}") String directory,
-      JdbcStore db,
-      UserRepository users,
+  public AvatarService(AvatarRepository persistence,
+            @Value("${app.account.avatar-directory:}") String directory,
+UserRepository users,
       PlatformTransactionManager manager) {
-    root = Path.of(directory).toAbsolutePath().normalize();
-    this.db = db;
+    this.persistence = persistence;
+    Path working = Path.of("").toAbsolutePath().normalize();
+    Path backend = Files.isRegularFile(working.resolve("backend/pom.xml"))
+        ? working.resolve("backend") : working;
+    root = directory.isBlank() ? backend.resolve(".runtime/avatars") : Path.of(directory).toAbsolutePath().normalize();
+    Path project = backend.getParent();
+    legacyRoot = directory.isBlank() && project != null
+        && Files.isRegularFile(project.resolve("backend/pom.xml"))
+        && Files.isRegularFile(project.resolve("frontend/package.json"))
+        ? project.resolve(".runtime/avatars") : null;
     this.users = users;
     tx = new TransactionTemplate(manager);
   }
 
-  private Path path(String key) {
-    return root.resolve(UUID.fromString(key).toString() + ".png");
+  private static Path path(Path directory, String key) {
+    return directory.resolve(UUID.fromString(key).toString() + ".png");
+  }
+
+  public static String url(String key) {
+    return key == null ? null : API_PATH + "/" + key;
+  }
+
+  private String currentKey(long owner) {
+    return persistence.currentKey(owner)
+        .map(row -> row.avatarStorageKey())
+        .orElse(null);
   }
 
   public static byte[] normalize(byte[] source) {
@@ -83,7 +102,7 @@ public class AvatarService {
     }
   }
 
-  public void save(AccountPrincipal owner, MultipartFile file) {
+  public String save(AccountPrincipal owner, MultipartFile file) {
     if (file.getSize() > 2 * 1024 * 1024)
       throw new ApiException(413, "AVATAR_TOO_LARGE", "Ảnh tối đa 2 MiB.");
     String key = UUID.randomUUID().toString();
@@ -113,30 +132,22 @@ public class AvatarService {
             415, "AVATAR_FORMAT_INVALID", "Nội dung ảnh không khớp định dạng JPEG, PNG hoặc WebP.");
       byte[] normalized = normalize(source);
       Files.createDirectories(root);
-      Files.write(path(key), normalized, StandardOpenOption.CREATE_NEW);
+      Files.write(path(root, key), normalized, StandardOpenOption.CREATE_NEW);
       try {
         String previous =
             tx.execute(
                 s -> {
                   require(owner);
-                  String prior =
-                      db.find(
-                              "SELECT avatar_storage_key FROM learner_profiles WHERE user_id=?",
-                              owner.id())
-                          .map(r -> r.text("avatar_storage_key"))
-                          .orElse(null);
-                  if (db.count("SELECT COUNT(*) FROM learner_profiles WHERE user_id=?", owner.id())
+                  String prior = currentKey(owner.id());
+                  if (persistence.profileCount(owner.id())
                       == 0)
                     throw new ApiException(
                         404, "PROFILE_NOT_FOUND", "Hãy lưu hồ sơ trước khi thêm ảnh.");
-                  db.update(
-                      "UPDATE learner_profiles SET avatar_storage_key=?,updated_at=UTC_TIMESTAMP(6)"
-                          + " WHERE user_id=?",
-                      key,
-                      owner.id());
+                  persistence.setKey(key, owner.id());
                   return prior;
                 });
         remove(previous);
+        return url(key);
       } catch (RuntimeException failure) {
         remove(key);
         throw failure;
@@ -148,14 +159,18 @@ public class AvatarService {
   }
 
   public byte[] read(long owner) {
-    String key =
-        db.find("SELECT avatar_storage_key FROM learner_profiles WHERE user_id=?", owner)
-            .map(r -> r.text("avatar_storage_key"))
-            .orElse(null);
-    if (key == null) throw new ApiException(404, "AVATAR_NOT_FOUND", "Bạn chưa có ảnh đại diện.");
+    return read(owner, null);
+  }
+
+  public byte[] read(long owner, String requestedKey) {
+    String key = currentKey(owner);
+    if (key == null || requestedKey != null && !key.equals(requestedKey))
+      throw new ApiException(404, "AVATAR_NOT_FOUND", "Không tìm thấy ảnh đại diện.");
     try {
-      return Files.readAllBytes(path(key));
-    } catch (IOException e) {
+      Path file = path(root, key);
+      if (legacyRoot != null && !Files.isRegularFile(file)) file = path(legacyRoot, key);
+      return Files.readAllBytes(file);
+    } catch (IOException | IllegalArgumentException e) {
       throw new ApiException(404, "AVATAR_NOT_FOUND", "Không tìm thấy ảnh đại diện.");
     }
   }
@@ -165,16 +180,8 @@ public class AvatarService {
         tx.execute(
             s -> {
               require(owner);
-              String prior =
-                  db.find(
-                          "SELECT avatar_storage_key FROM learner_profiles WHERE user_id=?",
-                          owner.id())
-                      .map(r -> r.text("avatar_storage_key"))
-                      .orElse(null);
-              db.update(
-                  "UPDATE learner_profiles SET avatar_storage_key=NULL,updated_at=UTC_TIMESTAMP(6)"
-                      + " WHERE user_id=?",
-                  owner.id());
+              String prior = currentKey(owner.id());
+              persistence.clearKey(owner.id());
               return prior;
             });
     remove(previous);
@@ -188,7 +195,8 @@ public class AvatarService {
   public boolean remove(String key) {
     if (key == null) return true;
     try {
-      Files.deleteIfExists(path(key));
+      Files.deleteIfExists(path(root, key));
+      if (legacyRoot != null) Files.deleteIfExists(path(legacyRoot, key));
       return true;
     } catch (IOException failure) {
       return false;
@@ -204,7 +212,7 @@ public class AvatarService {
         if (!name.matches("[a-f0-9-]{36}\\.png")) continue;
         String key = name.substring(0, 36);
         if (Files.getLastModifiedTime(file).toInstant().isBefore(Instant.now().minusSeconds(3600))
-            && db.count("SELECT COUNT(*) FROM learner_profiles WHERE avatar_storage_key=?", key)
+            && persistence.referenceCount(key)
                 == 0) remove(key);
       }
     } catch (IOException ignored) {

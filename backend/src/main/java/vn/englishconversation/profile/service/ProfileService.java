@@ -2,7 +2,7 @@ package vn.englishconversation.profile.service;
 
 import java.time.Instant;
 import java.util.*;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
@@ -16,7 +16,7 @@ import vn.englishconversation.scenario.service.CatalogService;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class ProfileService {
   private final ProfileRepository profiles;
   private final CatalogRepository catalog;
@@ -84,6 +84,6 @@ public class ProfileService {
         p.selectedLevel,
         p.learningGoal,
         p.dailyGoalMinutes,
-        catalog.interests(p.userId), p.avatarStorageKey==null?null:"/api/v1/profile/me/avatar");
+        catalog.interests(p.userId), AvatarService.url(p.avatarStorageKey));
   }
 }
