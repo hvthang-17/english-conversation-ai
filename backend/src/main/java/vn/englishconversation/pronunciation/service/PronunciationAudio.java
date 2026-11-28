@@ -9,11 +9,11 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.Predicate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class PronunciationAudio {
   private final Path directory;
 

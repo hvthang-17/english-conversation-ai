@@ -7,14 +7,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class PronunciationRepository {
   public static final String VERSION = "azure-en-us-ipa-short-v1";
   public static final String PROVIDER = "AZURE_SPEECH";
@@ -45,11 +45,11 @@ public class PronunciationRepository {
         user).isPresent();
   }
 
-  public Optional<Row> submitted(long user, String key) {
+  public Optional<SubmittedAttempt> submitted(long user, String key) {
     return db.find("""
         SELECT p.*,r.request_fingerprint FROM pronunciation_attempts p JOIN ai_requests r ON r.id=p.ai_request_id
         WHERE p.user_id=? AND p.client_request_id=?
-        """, user, key);
+        """, user, key).map(row -> new SubmittedAttempt(row.number("id"),row.text("request_fingerprint")));
   }
 
   public boolean lockUser(long user) {
@@ -105,14 +105,17 @@ public class PronunciationRepository {
     return new History(rows.stream().limit(size).map(this::attempt).toList(), page, rows.size() > size);
   }
 
-  public List<Row> candidates() {
+  public List<Candidate> candidates() {
     return db.rows("""
         SELECT p.id,p.user_id FROM pronunciation_attempts p JOIN ai_requests r ON r.id=p.ai_request_id
         WHERE p.status='PENDING' AND p.audio_expires_at>UTC_TIMESTAMP(6)+INTERVAL 50 SECOND
         AND (r.retry_not_before IS NULL OR r.retry_not_before<=UTC_TIMESTAMP(6))
         ORDER BY p.id LIMIT 10
-        """);
+        """).stream().map(row -> new Candidate(row.number("id"),row.number("user_id"))).toList();
   }
+
+  public record SubmittedAttempt(long id, String requestFingerprint) {}
+  public record Candidate(long id, long userId) {}
 
   public record Job(long id, long user, long request, int run, String audio, String reference, String locale) {}
 
@@ -201,14 +204,14 @@ public class PronunciationRepository {
     db.update("UPDATE pronunciation_attempts SET status=?,error_code='PROCESSING_EXPIRED' WHERE id=?", status, id);
   }
 
-  public List<Row> cleanupCandidates() {
+  public List<Candidate> cleanupCandidates() {
     return db.rows("""
         SELECT p.id,p.user_id FROM pronunciation_attempts p JOIN ai_requests r ON r.id=p.ai_request_id
         WHERE p.audio_storage_key IS NOT NULL AND
             (p.status NOT IN ('PENDING','RUNNING') OR p.audio_expires_at<=UTC_TIMESTAMP(6)
               OR r.processing_expires_at<=UTC_TIMESTAMP(6))
         ORDER BY p.id LIMIT 50
-        """);
+        """).stream().map(row -> new Candidate(row.number("id"),row.number("user_id"))).toList();
   }
 
   public Optional<String> terminalAudio(long id) {

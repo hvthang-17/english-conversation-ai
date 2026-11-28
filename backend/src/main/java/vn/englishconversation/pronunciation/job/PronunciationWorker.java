@@ -4,7 +4,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -16,7 +16,7 @@ import vn.englishconversation.pronunciation.service.PronunciationProvider;
 import vn.englishconversation.pronunciation.service.PronunciationService;
 
 @Component
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class PronunciationWorker {
   private final PronunciationRepository store;
   private final PronunciationAudio audio;
@@ -40,9 +40,9 @@ public class PronunciationWorker {
   public void assessPending() {
     if (!service.scoringAvailable()) return;
     for (var candidate : store.candidates()) {
-      long user = candidate.number("user_id");
+      long user = candidate.userId();
       var job = tx.execute(transaction -> store.lockActiveUser(user)
-          ? store.claim(candidate.number("id"), user, service::reserveProviderCall).orElse(null) : null);
+          ? store.claim(candidate.id(), user, service::reserveProviderCall).orElse(null) : null);
       if (job != null) {
         assess(job);
         return;
@@ -89,7 +89,7 @@ public class PronunciationWorker {
   @Scheduled(fixedDelayString = "${app.pronunciation.cleanup-ms:30000}")
   public void cleanup() {
     for (var row : store.cleanupCandidates()) {
-      cleanupAttempt(row.number("id"), row.number("user_id"));
+      cleanupAttempt(row.id(), row.userId());
     }
     store.pruneTechnicalAttempts();
     audio.removeOrphans(Instant.now().minus(1, ChronoUnit.HOURS), store::hasAudio);

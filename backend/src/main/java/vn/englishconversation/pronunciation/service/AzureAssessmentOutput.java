@@ -7,13 +7,13 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class AzureAssessmentOutput {
   private static final Set<String> ERROR_TYPES =
       Set.of("None", "Omission", "Insertion", "Mispronunciation");

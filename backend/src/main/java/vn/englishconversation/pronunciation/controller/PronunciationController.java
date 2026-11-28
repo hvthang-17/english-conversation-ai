@@ -3,7 +3,7 @@ package vn.englishconversation.pronunciation.controller;
 import static vn.englishconversation.pronunciation.dto.PronunciationData.*;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +14,7 @@ import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.pronunciation.service.PronunciationService;
 
 @RestController
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 @RequestMapping("/api/v1/pronunciation")
 public class PronunciationController {
   private final PronunciationService service;

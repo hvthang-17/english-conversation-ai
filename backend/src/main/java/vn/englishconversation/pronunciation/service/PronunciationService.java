@@ -10,7 +10,7 @@ import java.util.List;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -21,7 +21,7 @@ import vn.englishconversation.pronunciation.repository.PronunciationRepository;
 import vn.englishconversation.voice.service.WaveAudio;
 
 @Service
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class PronunciationService {
   private final PronunciationRepository store;
   private final PronunciationAudio audio;
@@ -67,9 +67,9 @@ public class PronunciationService {
       if (previous.isPresent()) {
         var row = previous.get();
         if (!MessageDigest.isEqual(fingerprint.getBytes(StandardCharsets.US_ASCII),
-            row.text("request_fingerprint").getBytes(StandardCharsets.US_ASCII)))
+            row.requestFingerprint().getBytes(StandardCharsets.US_ASCII)))
           throw new ApiException(409, "PRONUNCIATION_REQUEST_CONFLICT", "Mã lần gửi đã dùng cho bản ghi khác.");
-        return get(user, row.number("id"));
+        return get(user, row.id());
       }
       if (!scoringAvailable())
         throw new ApiException(503, "PRONUNCIATION_DISABLED", "Chấm phát âm chưa khả dụng.");

@@ -60,12 +60,13 @@ class PronunciationMysqlTest {
   static void isolated(DynamicPropertyRegistry registry) throws IOException {
     var directory = Files.createTempDirectory(Path.of("target"), "pronunciation-test-").toAbsolutePath();
     registry.add("spring.datasource.url", () -> testUrl("G5_TEST_DB_URL"));
-    registry.add("spring.datasource.username", () -> "root");
-    registry.add("spring.datasource.password", () -> "");
+    registry.add("spring.datasource.username", () -> System.getenv("SPRING_DATASOURCE_USERNAME"));
+    registry.add("spring.datasource.password", () -> System.getenv("SPRING_DATASOURCE_PASSWORD"));
     registry.add("app.pronunciation.audio-directory", directory::toString);
     registry.add("app.pronunciation.fingerprint-key", () -> "fixture-only-secret-not-for-runtime");
     registry.add("app.pronunciation.poll-ms", () -> 300);
     registry.add("app.pronunciation.cleanup-ms", () -> 300);
+    registry.add("app.pronunciation.daily-request-limit", () -> 6);
     registry.add("app.pronunciation.provider-daily-limit", () -> 40);
     registry.add("app.mail.enabled", () -> false);
     registry.add("app.admin-bootstrap.enabled", () -> false);
@@ -75,12 +76,13 @@ class PronunciationMysqlTest {
   @Test
   void upgradesV12AndPreservesListeningAndLessonData() {
     String url = testUrl("G5_UPGRADE_DB_URL");
-    var baseline = Flyway.configure().dataSource(url, "root", "").target("12").load();
+    var baseline = Flyway.configure().dataSource(url, System.getenv("SPRING_DATASOURCE_USERNAME"), System.getenv("SPRING_DATASOURCE_PASSWORD")).target("12").load();
     assertEquals(12, baseline.migrate().migrationsExecuted);
-    var upgrade = Flyway.configure().dataSource(url, "root", "").load();
-    assertEquals(3, upgrade.migrate().migrationsExecuted);
+    var upgrade = Flyway.configure().dataSource(url, System.getenv("SPRING_DATASOURCE_USERNAME"), System.getenv("SPRING_DATASOURCE_PASSWORD")).load();
+    assertEquals(21, upgrade.migrate().migrationsExecuted);
+    assertEquals("33", upgrade.info().current().getVersion().getVersion());
     assertEquals(0, upgrade.migrate().migrationsExecuted);
-    var source = new org.springframework.jdbc.datasource.DriverManagerDataSource(url, "root", "");
+    var source = new org.springframework.jdbc.datasource.DriverManagerDataSource(url, System.getenv("SPRING_DATASOURCE_USERNAME"), System.getenv("SPRING_DATASOURCE_PASSWORD"));
     var upgraded = new JdbcTemplate(source);
     assertEquals(8, upgraded.queryForObject("SELECT COUNT(*) FROM listening_exercises", Integer.class));
     assertEquals(8, upgraded.queryForObject("SELECT COUNT(*) FROM lessons", Integer.class));
@@ -237,7 +239,7 @@ class PronunciationMysqlTest {
 
   private static String testUrl(String name) {
     String value = System.getenv(name);
-    if (value == null || !value.matches("jdbc:mysql://127\\.0\\.0\\.1:13306/g5_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (value == null || !value.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|3307|13306)/g5_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use dedicated G5 schemas on MySQL test port");
     return value;
   }

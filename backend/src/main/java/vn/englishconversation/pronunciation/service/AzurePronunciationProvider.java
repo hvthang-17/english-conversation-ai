@@ -15,13 +15,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.pronunciation.dto.PronunciationData.Assessment;
 
 @Component
-@Profile({"g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.PRONUNCIATION)
 public class AzurePronunciationProvider implements PronunciationProvider {
   private final boolean enabled;
   private final String key;

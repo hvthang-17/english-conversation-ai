@@ -3,37 +3,47 @@ package vn.englishconversation.pronunciation.service;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
+import org.springframework.dao.DataAccessException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
-import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.pronunciation.repository.ConversationPronunciationRepository;
 import vn.englishconversation.pronunciation.dto.PronunciationData.Word;
+import vn.englishconversation.pronunciation.repository.PronunciationRepository;
 import vn.englishconversation.voice.service.VoiceStorage;
+import vn.englishconversation.voice.service.WaveAudio;
 
 @Service
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.CONVERSATION)
 public class ConversationPronunciation {
-  private final JdbcStore db;
+  private final ConversationPronunciationRepository persistence;
   private final PronunciationService scoring;
   private final PronunciationAudio files;
   private final VoiceStorage voice;
   private final ObjectMapper json;
+  private final TransactionTemplate tx;
+  private final PronunciationRepository repository;
   private final boolean enabled;
 
-  public ConversationPronunciation(JdbcStore db, PronunciationService scoring, PronunciationAudio files,
-      VoiceStorage voice, ObjectMapper json,
+  public ConversationPronunciation(ConversationPronunciationRepository persistence, PronunciationService scoring, PronunciationAudio files,
+      VoiceStorage voice, ObjectMapper json, TransactionTemplate tx, PronunciationRepository repository,
       @Value("${app.pronunciation.conversation-enabled:false}") boolean enabled) {
-    this.db = db;
+    this.persistence = persistence;
     this.scoring = scoring;
     this.files = files;
     this.voice = voice;
     this.json = json;
+    this.tx = tx;
+    this.repository = repository;
     this.enabled = enabled;
   }
 
@@ -41,19 +51,55 @@ public class ConversationPronunciation {
     return enabled && scoring.scoringAvailable();
   }
 
-  // Runs inside the transcript confirmation transaction with the owner and session locked.
-  public void enqueue(long user, long session, long audioId) {
-    if (!available()) return;
-    var raw = db.find("""
-        SELECT storage_key,request_fingerprint,duration_ms FROM audio_submissions
-        WHERE id=? AND session_id=? AND status='CONFIRMED' AND storage_key IS NOT NULL
-          AND expires_at>UTC_TIMESTAMP(6) FOR UPDATE
-        """, audioId, session);
-    if (raw.isEmpty() || raw.get().number("duration_ms") > 30_000) return;
+  public void schedule(long session, long audioId, boolean requested) {
+    ConversationPronunciationRepository.RawAudio raw = persistence.lockConfirmedAudio(audioId, session).orElseThrow();
+    String reason = ineligible(raw, requested);
+    setPreparation(audioId, reason == null ? "PENDING_PREPARATION" : "SKIPPED", reason);
+  }
+
+  private String ineligible(ConversationPronunciationRepository.RawAudio raw, boolean requested) {
+    if (raw.durationMs() > WaveAudio.CONVERSATION_MAX_SECONDS * 1000) return "TOO_LONG";
+    if (!available()) return "ASSESSMENT_DISABLED";
+    if (!requested) return "ASSESSMENT_NOT_REQUESTED";
+    if (raw.expired()) return "AUDIO_EXPIRED";
+    if (raw.storageKey() == null) return "AUDIO_MISSING";
+    return null;
+  }
+
+  @Scheduled(fixedDelayString = "${app.pronunciation.poll-ms:2000}")
+  public void preparePending() {
+    for (var candidate : persistence.pendingPreparations()) {
+      long audioId = candidate.id();
+      long session = candidate.sessionId();
+      long user = candidate.userId();
+      try {
+        tx.executeWithoutResult(ignored -> prepare(user, session, audioId));
+      } catch (DataAccessException failure) {
+        persistence.failPreparation(audioId, session);
+      }
+    }
+  }
+
+  private void prepare(long user, long session, long audioId) {
+    if (!repository.lockActiveUser(user)) {
+      persistence.skipPreparation(audioId, session);
+      return;
+    }
+    ConversationPronunciationRepository.RawAudio raw = persistence.lockPendingAudio(audioId, session).orElse(null);
+    if (raw == null) return;
+    String reason = ineligible(raw, true);
+    if (reason != null) {
+      setPreparation(audioId, "SKIPPED", reason);
+      return;
+    }
     String key;
     try {
-      key = files.save(Files.readAllBytes(voice.path(raw.get().text("storage_key"))));
+      key = files.save(Files.readAllBytes(voice.path(raw.storageKey())));
+    } catch (NoSuchFileException missing) {
+      setPreparation(audioId, "FAILED", "AUDIO_MISSING");
+      return;
     } catch (IOException | IllegalStateException unavailable) {
+      setPreparation(audioId, "FAILED", "PREPARATION_FAILED");
       return;
     }
     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -63,32 +109,25 @@ public class ConversationPronunciation {
       }
     });
     String operation = "voice:" + audioId;
-    long request = db.insert("""
-        INSERT INTO ai_requests(user_id,session_id,task_type,operation_key,request_fingerprint,prompt_version,created_at)
-        VALUES (?,?,'PRONUNCIATION',?,?,'azure-en-us-unscripted-v1',UTC_TIMESTAMP(6))
-        """, user, session, operation, raw.get().text("request_fingerprint"));
-    db.insert("""
-        INSERT INTO pronunciation_attempts(user_id,ai_request_id,client_request_id,mode,status,
-          provider,locale,assessment_version,audio_submission_id,audio_storage_key,audio_expires_at,created_at)
-        SELECT ?,?,?,'UNSCRIPTED','PENDING','AZURE_SPEECH','en-US','azure-en-us-unscripted-v1',id,?,
-          expires_at,UTC_TIMESTAMP(6) FROM audio_submissions WHERE id=?
-        """, user, request, operation, key, audioId);
+    long request = persistence.createRequest(user, session, operation, raw.requestFingerprint());
+    persistence.createAttempt(user, request, operation, key, audioId);
+    setPreparation(audioId, "PREPARED", null);
+  }
+
+  private void setPreparation(long audioId, String status, String reason) {
+    persistence.setPreparation(status, reason, audioId);
   }
 
   public record Score(String status, String errorCode, BigDecimal overall, BigDecimal accuracy, BigDecimal fluency,
                       String recognizedText, List<Word> words) {}
 
   public Map<Long, Score> scores(long session) {
-    return db.rows("""
-        SELECT m.id,p.status,p.error_code,p.overall_score,p.accuracy,p.fluency,
-          p.recognized_text,p.detail_json FROM messages m
-        JOIN pronunciation_attempts p ON p.audio_submission_id=m.audio_submission_id WHERE m.session_id=?
-        """, session).stream().collect(Collectors.toMap(row -> row.number("id"), row -> {
-      boolean scored = "SUCCEEDED".equals(row.text("status"));
-      String detail = scored ? row.text("detail_json") : null;
-      return new Score(row.text("status"), row.text("error_code"),
-          (BigDecimal) row.data().get("overall_score"), (BigDecimal) row.data().get("accuracy"),
-          (BigDecimal) row.data().get("fluency"), scored ? row.text("recognized_text") : null,
+    return persistence.scores(session).stream().collect(Collectors.toMap(row -> row.id(), row -> {
+      boolean scored = "SUCCEEDED".equals(row.status());
+      String detail = scored ? row.detailJson() : null;
+      return new Score(row.status(), row.errorCode(),
+          row.overallScore(), row.accuracy(),
+          row.fluency(), scored ? row.recognizedText() : null,
           detail == null ? List.of() : List.of(json.readValue(detail, Word[].class)));
     }));
   }
