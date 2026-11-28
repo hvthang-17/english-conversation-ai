@@ -20,5 +20,4 @@ public record PracticeResponse(
     List<MessageResponse> messages,
     List<TurnResponse> turns,
     OperationResponse operation,
-    String hint,
-    boolean hintAlreadyConsumed) {}
+    HintResponse hint) {}

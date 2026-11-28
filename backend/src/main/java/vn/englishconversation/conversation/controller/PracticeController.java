@@ -1,7 +1,7 @@
 package vn.englishconversation.conversation.controller;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,11 +16,19 @@ import vn.englishconversation.voice.service.WaveAudio;
 
 @RestController
 @RequestMapping("/api/v1/practice-sessions")
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.CONVERSATION)
 public class PracticeController {
   private final PracticeService practice;
 
-  public PracticeController(PracticeService practice) {
+  private final vn.englishconversation.voice.service.VoiceDraftService voice;
+  private final vn.englishconversation.conversation.service.HintService hints;
+  private final vn.englishconversation.conversation.service.ExplanationService explanations;
+
+  public PracticeController(PracticeService practice,
+      vn.englishconversation.voice.service.VoiceDraftService voice,
+      vn.englishconversation.conversation.service.HintService hints,
+      vn.englishconversation.conversation.service.ExplanationService explanations) {
+    this.voice = voice; this.hints = hints; this.explanations = explanations;
     this.practice = practice;
   }
 
@@ -60,20 +68,21 @@ public class PracticeController {
       @RequestParam String clientRequestId,
       @RequestParam(defaultValue = "false") boolean retry,
       @RequestPart MultipartFile file) {
-    return practice.uploadVoice(owner, id, clientRequestId, WaveAudio.read(file), retry);
+    var audio = WaveAudio.read(file, WaveAudio.CONVERSATION_MAX_SECONDS);
+    return voice.uploadVoice(owner, id, clientRequestId, audio, retry);
   }
 
   @GetMapping("/{id}/audio")
   public ResponseEntity<VoiceDraft> recoverVoice(
       @AuthenticationPrincipal AccountPrincipal owner, @PathVariable long id) {
-    return practice.recoverVoice(owner, id).map(ResponseEntity::ok)
+    return voice.recoverVoice(owner, id).map(ResponseEntity::ok)
         .orElseGet(() -> ResponseEntity.noContent().build());
   }
 
   @GetMapping("/{id}/audio/{audioId}")
   public VoiceDraft getVoice(
       @AuthenticationPrincipal AccountPrincipal owner, @PathVariable long id, @PathVariable long audioId) {
-    return practice.getVoice(owner, id, audioId);
+    return voice.getVoice(owner, id, audioId);
   }
 
   @PostMapping("/{id}/audio/{audioId}/confirm")
@@ -82,34 +91,40 @@ public class PracticeController {
       @PathVariable long id,
       @PathVariable long audioId,
       @Valid @RequestBody ConfirmVoiceRequest request) {
-    return practice.confirmVoice(owner, id, audioId, request.content(), request.assessPronunciation());
+    return voice.confirmVoice(owner, id, audioId, request.content(), request.assessPronunciation());
   }
 
   @DeleteMapping("/{id}/audio/{audioId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void discardVoice(
       @AuthenticationPrincipal AccountPrincipal owner, @PathVariable long id, @PathVariable long audioId) {
-    practice.discardVoice(owner, id, audioId);
+    voice.discardVoice(owner, id, audioId);
   }
 
   @PostMapping("/{id}/hints")
-  public PracticeResponse hint(
+  public HintResponse hint(
       @AuthenticationPrincipal AccountPrincipal owner,
       @PathVariable long id,
       @Valid @RequestBody HintRequest request) {
-    return practice.hint(owner, id, request);
+    return hints.hint(owner, id, request);
+  }
+
+  @GetMapping("/{id}/messages/{messageId}/hint")
+  public HintResponse getHint(@AuthenticationPrincipal AccountPrincipal owner,
+      @PathVariable long id, @PathVariable long messageId) {
+    return hints.getHint(owner, id, messageId);
   }
 
   @GetMapping("/{id}/messages/{messageId}/explanation")
   public ExplanationResponse explanation(@AuthenticationPrincipal AccountPrincipal owner,
       @PathVariable long id, @PathVariable long messageId) {
-    return practice.getExplanation(owner, id, messageId);
+    return explanations.getExplanation(owner, id, messageId);
   }
 
   @PostMapping("/{id}/messages/{messageId}/explanation")
   public ExplanationResponse explain(@AuthenticationPrincipal AccountPrincipal owner,
       @PathVariable long id, @PathVariable long messageId, @Valid @RequestBody ExplanationRequest input) {
-    return practice.explain(owner, id, messageId, input);
+    return explanations.explain(owner, id, messageId, input);
   }
 
   @PostMapping("/{id}/operations/{operation}/retry")
