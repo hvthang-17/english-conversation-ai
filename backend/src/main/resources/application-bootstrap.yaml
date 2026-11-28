@@ -6,3 +6,18 @@ spring:
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
       - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
       - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+
+app:
+  features:
+    stage: ${APP_FEATURES_STAGE:BOOTSTRAP}
+  gemini:
+    enabled: false
+  mail:
+    enabled: false
+    reminders-enabled: false
+  listening:
+    azure:
+      enabled: false
+  pronunciation:
+    azure:
+      enabled: false

@@ -26,9 +26,10 @@ import vn.englishconversation.scenario.service.CatalogService;
 import vn.englishconversation.user.repository.UserRepository;
 
 @WebMvcTest(controllers = {AuthController.class, CatalogController.class},
+    properties = "app.features.stage=CATALOG",
     excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
 @Import(SecurityConfig.class)
-@ActiveProfiles("test")
+@ActiveProfiles("g2")
 class PhaseZeroApiTest {
   @Autowired MockMvc mvc;
   @MockitoBean AccountService accounts;

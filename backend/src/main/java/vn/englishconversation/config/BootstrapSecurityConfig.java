@@ -1,4 +1,5 @@
 package vn.englishconversation.config;
+import vn.englishconversation.config.features.FeatureEnabled;
 
 import org.springframework.context.annotation.*;
 import org.springframework.http.*;
@@ -8,7 +9,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 @Configuration
-@Profile("bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.BOOTSTRAP)
 public class BootstrapSecurityConfig {
   @Bean
   SecurityFilterChain scaffoldSecurity(HttpSecurity http) throws Exception {

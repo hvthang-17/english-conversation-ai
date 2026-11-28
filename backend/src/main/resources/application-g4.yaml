@@ -7,6 +7,8 @@ spring:
     baseline-on-migrate: false
     target: 12
 app:
+  features:
+    stage: ${APP_FEATURES_STAGE:LISTENING}
   gemini:
     enabled: false
   mail:

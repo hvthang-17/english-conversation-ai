@@ -7,6 +7,8 @@ spring:
     baseline-on-migrate: false
     target: 15
 app:
+  features:
+    stage: ${APP_FEATURES_STAGE:PRONUNCIATION}
   gemini:
     enabled: false
   mail:

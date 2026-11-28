@@ -1,4 +1,5 @@
 package vn.englishconversation.config;
+import vn.englishconversation.config.features.FeatureEnabled;
 
 import java.util.List;
 import org.springframework.context.annotation.*;
@@ -16,7 +17,7 @@ import vn.englishconversation.common.exception.ApiErrors;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Configuration(proxyBeanMethods = false)
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 @EnableScheduling
 public class SecurityConfig {
   @Bean
@@ -45,19 +46,24 @@ public class SecurityConfig {
       HttpSecurity http,
       SecurityContextRepository contexts,
       CsrfTokenRepository csrf,
-      UserRepository users)
+      UserRepository users, org.springframework.core.env.Environment environment)
       throws Exception {
+    var features = vn.englishconversation.config.features.FeatureSet.resolve(environment);
     return http.securityContext(
             c -> c.securityContextRepository(contexts).requireExplicitSave(true))
         .csrf(c -> c.csrfTokenRepository(csrf))
         .requestCache(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers(HttpMethod.GET, "/api/v1/system/health", "/api/v1/system/features", "/api/v1/auth/csrf")
+                a.requestMatchers(request -> vn.englishconversation.config.features.DisabledFeatureRoutes.matches(request,
+                        features)).denyAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/system/health", "/api/v1/system/features", "/api/v1/auth/csrf")
                     .permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/password-reset/request", "/api/v1/auth/password-reset/confirm")
                     .permitAll()
                     .requestMatchers("/api/v1/auth/account", "/api/v1/profile/me/avatar", "/api/v1/profile/me/practice-schedule")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/profile/me/avatar/*")
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
                     .permitAll()
@@ -94,7 +100,8 @@ public class SecurityConfig {
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/practice-sessions/*",
                         "/api/v1/practice-sessions/*/feedback", "/api/v1/practice-sessions/*/audio",
-                        "/api/v1/practice-sessions/*/audio/*", "/api/v1/practice-sessions/*/messages/*/explanation")
+                        "/api/v1/practice-sessions/*/audio/*", "/api/v1/practice-sessions/*/messages/*/explanation",
+                        "/api/v1/practice-sessions/*/messages/*/hint")
                     .authenticated()
                     .requestMatchers(HttpMethod.PATCH, "/api/v1/practice-sessions/*/mode")
                     .authenticated()
@@ -122,10 +129,10 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/learning/cards", "/api/v1/learning/history", "/api/v1/learning/stats", "/api/v1/learning/recommendations", "/api/v1/learning/recommendations/difficulty")
                     .authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/learning/notebook",
-                        "/api/v1/learning/notebook/*", "/api/v1/learning/notebook/*/attempts")
+                        "/api/v1/learning/notebook/*")
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/learning/notebook/from-language-item/*",
-                        "/api/v1/learning/notebook/*/attempts", "/api/v1/learning/notebook/*/quiz")
+                        "/api/v1/learning/notebook/*/attempts")
                     .authenticated()
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/learning/notebook/*")
                     .authenticated()

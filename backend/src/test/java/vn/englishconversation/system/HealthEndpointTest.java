@@ -13,7 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties="app.features.stage=BOOTSTRAP")
 @AutoConfigureMockMvc
 @ActiveProfiles("bootstrap")
 class HealthEndpointTest {

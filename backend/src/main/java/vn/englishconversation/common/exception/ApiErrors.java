@@ -61,7 +61,7 @@ public class ApiErrors {
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   ResponseEntity<ApiErrorResponse> conflict() {
-    return body(409, "ACCOUNT_CONFLICT", "Không thể tạo tài khoản với email này.", Map.of());
+    return body(409, "DATA_CONFLICT", "Dữ liệu xung đột với trạng thái hiện tại. Hãy tải lại và thử lại.", Map.of());
   }
 
   @ExceptionHandler(

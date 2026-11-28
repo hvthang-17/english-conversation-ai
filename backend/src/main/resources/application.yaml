@@ -53,10 +53,11 @@ server:
 
 app:
   account:
-    avatar-directory: ${AVATAR_DIRECTORY:.runtime/avatars}
+    avatar-directory: ${AVATAR_DIRECTORY:}
     cleanup-ms: ${ACCOUNT_CLEANUP_MS:300000}
   mail:
     enabled: ${MAIL_ENABLED:false}
+    reminders-enabled: ${MAIL_REMINDERS_ENABLED:false}
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}

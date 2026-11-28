@@ -7,6 +7,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: false
 app:
+  features:
+    stage: ${APP_FEATURES_STAGE:ACCOUNT}
   gemini:
     enabled: false
   mail:
