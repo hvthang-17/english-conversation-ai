@@ -1,20 +1,20 @@
 package vn.englishconversation.feedback.controller;
 
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.conversation.dto.RetryRequest;
-import vn.englishconversation.conversation.service.PracticeService;
+import vn.englishconversation.feedback.service.FeedbackService;
 import vn.englishconversation.feedback.dto.FeedbackResponse;
 
 @RestController
 @RequestMapping("/api/v1/practice-sessions/{id}/feedback")
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.FEEDBACK)
 public class FeedbackController {
-  private final PracticeService practice;
+  private final FeedbackService practice;
 
-  public FeedbackController(PracticeService practice) {
+  public FeedbackController(FeedbackService practice) {
     this.practice = practice;
   }
 

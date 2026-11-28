@@ -8,7 +8,8 @@ public record FeedbackResult(
     String goalAssessment,
     List<Correction> corrections,
     List<Suggestion> suggestions,
-    String nextPractice) {
+    String nextPractice,
+    Coaching coaching) {
   public record Correction(
       String sourceMessageId,
       String itemType,
@@ -20,5 +21,14 @@ public record FeedbackResult(
 
   public record Suggestion(
       String itemType, String expression, String meaningVi, String exampleEn,
-      vn.englishconversation.lesson.dto.PartOfSpeech partOfSpeech) {}
+      vn.englishconversation.lesson.dto.PartOfSpeech partOfSpeech, SuggestionSource source) {}
+
+  public record SuggestionSource(
+      String kind, String messageId, String excerpt, String observedForm, String useVi, Boolean meaningVerified) {}
+  public record Coaching(int analyzedTurns, int totalTurns, List<TurnReview> turns,
+      List<GoalReview> goals, Replay replay) {}
+  public record TurnReview(String learnerMessageId, String assistantMessageId, String status,
+      String questionQuality, String explanationVi, String adviceKind, String suggestionEn) {}
+  public record GoalReview(String labelVi, String status, List<String> learnerMessageIds) {}
+  public record Replay(String learnerMessageId, String criterionVi, String transferQuestionEn) {}
 }
