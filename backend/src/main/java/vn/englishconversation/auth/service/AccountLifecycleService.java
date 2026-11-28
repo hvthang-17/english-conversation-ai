@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 import org.springframework.stereotype.Service;
@@ -14,14 +14,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.security.TokenCipher;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.auth.repository.AccountLifecycleRepository;
 import vn.englishconversation.mail.provider.MailGateway;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AccountLifecycleService {
-  private final JdbcStore db;
+  private final AccountLifecycleRepository persistence;
   private final AccountRateLimiter rateLimiter;
   private final UserRepository users;
   private final PasswordEncoder passwords;
@@ -31,8 +31,7 @@ public class AccountLifecycleService {
   private final TransactionTemplate tx;
   private final String publicUrl;
 
-  public AccountLifecycleService(
-      JdbcStore db,
+  public AccountLifecycleService(AccountLifecycleRepository persistence,
       AccountRateLimiter rateLimiter,
       UserRepository users,
       PasswordEncoder passwords,
@@ -41,7 +40,7 @@ public class AccountLifecycleService {
       MailGateway mail,
       PlatformTransactionManager manager,
       @Value("${app.mail.public-url:http://localhost:5173}") String publicUrl) {
-    this.db = db;
+    this.persistence = persistence;
     this.rateLimiter = rateLimiter;
     this.users = users;
     this.passwords = passwords;
@@ -70,14 +69,8 @@ public class AccountLifecycleService {
   }
 
   public void invalidateReset(long id) {
-    db.update(
-        "UPDATE account_action_tokens SET consumed_at=UTC_TIMESTAMP(6) WHERE user_id=? AND"
-            + " consumed_at IS NULL",
-        id);
-    db.update(
-        "UPDATE account_mail_outbox SET status='CANCELLED',encrypted_payload=NULL"
-            + " WHERE user_id=? AND status<>'SENT'",
-        id);
+    persistence.consumeActiveTokens(id);
+    persistence.cancelPendingMail(id);
   }
 
   public void requestReset(String raw) {
@@ -101,22 +94,8 @@ public class AccountLifecycleService {
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
     Instant expires = Instant.now().plusSeconds(1800);
     long tokenId =
-        db.insert(
-            "INSERT INTO"
-                + " account_action_tokens(user_id,email,token_hash,expires_at,created_at)"
-                + " VALUES (?,?,?,?,UTC_TIMESTAMP(6))",
-            id,
-            email,
-            TokenCipher.hash(token),
-            Timestamp.from(expires));
-    db.insert(
-        "INSERT INTO"
-            + " account_mail_outbox(user_id,action_token_id,encrypted_payload,next_attempt_at,expires_at,created_at)"
-            + " VALUES (?,?,?,UTC_TIMESTAMP(6),?,UTC_TIMESTAMP(6))",
-        id,
-        tokenId,
-        cipher.encrypt(token),
-        Timestamp.from(expires));
+        persistence.createToken(id, email, TokenCipher.hash(token), Timestamp.from(expires));
+    persistence.queueResetMail(id, tokenId, cipher.encrypt(token), Timestamp.from(expires));
   }
 
   public void confirmReset(String token, String newPassword) {
@@ -126,23 +105,18 @@ public class AccountLifecycleService {
         s -> {
           // Lock owner before token, consistent with issue/reset/delete lock ordering.
           var initial =
-              db.find(
-                      "SELECT user_id FROM account_action_tokens WHERE token_hash=?",
-                      TokenCipher.hash(token))
+              persistence.tokenOwner(TokenCipher.hash(token))
                   .orElseThrow(AccountLifecycleService::tokenError);
           var user =
               users
-                  .lockById(initial.number("user_id"))
+                  .lockById(initial.userId())
                   .orElseThrow(AccountLifecycleService::tokenError);
           var t =
-              db.find(
-                      "SELECT * FROM account_action_tokens WHERE token_hash=? AND"
-                          + " consumed_at IS NULL AND expires_at>UTC_TIMESTAMP(6) FOR UPDATE",
-                      TokenCipher.hash(token))
+              persistence.lockValidToken(TokenCipher.hash(token))
                   .orElseThrow(AccountLifecycleService::tokenError);
           if (!"ACTIVE".equals(user.status)
               || user.deletionRequestedAt != null
-              || !user.email.equals(t.text("email"))) throw tokenError();
+              || !user.email.equals(t.email())) throw tokenError();
           user.passwordHash = passwords.encode(newPassword);
           user.passwordChangedAt = Instant.now();
           user.securityVersion++;
@@ -169,26 +143,11 @@ public class AccountLifecycleService {
           user.securityVersion++;
           users.flush();
           revoke(user.id);
-          db.update(
-              "UPDATE account_action_tokens SET consumed_at=UTC_TIMESTAMP(6) WHERE user_id=?",
-              user.id);
-          db.update(
-              "UPDATE account_mail_outbox SET status='CANCELLED',encrypted_payload=NULL WHERE"
-                  + " user_id=?",
-              user.id);
-          db.update(
-              "UPDATE practice_schedules SET"
-                  + " enabled=FALSE,email_reminder_enabled=FALSE,version=version+1 WHERE user_id=?",
-              user.id);
-          db.update(
-              "UPDATE practice_reminder_deliveries d JOIN practice_schedules s ON"
-                  + " s.id=d.schedule_id SET d.status='CANCELLED' WHERE s.user_id=? AND"
-                  + " d.status<>'SENT'",
-              user.id);
-          db.insert(
-              "INSERT INTO account_deletion_jobs(subject_user_id,requested_at,next_attempt_at)"
-                  + " VALUES (?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
-              user.id);
+          persistence.consumeAllTokens(user.id);
+          persistence.cancelAllMail(user.id);
+          persistence.disableSchedule(user.id);
+          persistence.cancelReminders(user.id);
+          persistence.requestDeletion(user.id);
         });
   }
 

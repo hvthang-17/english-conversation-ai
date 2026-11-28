@@ -22,6 +22,7 @@ User gồm `id`, `email`, `role` và `status`. Đăng ký tạo tài khoản LEA
 - MySQL lưu email đã chuẩn hóa bằng ASCII/ascii_bin, CHECK lowercase/trim/không whitespace và UNIQUE(email). DB từ chối ghi email chưa chuẩn hóa thay vì âm thầm sửa. API chuẩn hóa trước truy vấn/ghi; UNIQUE xử lý cả đăng ký đồng thời.
 - Mật khẩu mới 12–128 Java UTF-16 code units; không strip/trim/lowercase, kể cả khoảng trắng đầu/cuối. PBKDF2-HMAC-SHA256 với salt ngẫu nhiên, 310.000 iterations theo encoder đã chọn. Không tự thay thuật toán nếu chưa có kế hoạch chuyển hash.
 - Lỗi `{code,message,fieldErrors,requestId}`. 400 validation/password hiện tại sai; 401 thông tin đăng nhập không hợp lệ/phiên kết thúc; 403 CSRF hoặc thiếu quyền; 409 email trùng; 415 Content-Type sai; 500 thông báo chung không lộ stack trace.
+- Email trùng khi đăng ký trả `409 ACCOUNT_CONFLICT`, kể cả khi hai yêu cầu cùng vượt qua bước kiểm tra email tồn tại. Chỉ ràng buộc `uk_users_email` được ánh xạ thành lỗi này tại luồng lưu tài khoản. Vi phạm ràng buộc dữ liệu khác trả `409 DATA_CONFLICT` với thông báo trung tính, không trả SQL hay tên constraint.
 - Login sai mật khẩu hoặc tài khoản khóa dùng cùng thông báo chung. Không trả entity JPA.
 
 ## Client và vòng đời phiên
@@ -51,3 +52,16 @@ Base `/api/v1`. Mutation đều yêu cầu CSRF, kể cả endpoint công khai. 
 429 có `Retry-After` khi vượt giới hạn. Liên kết dùng URL frontend cấu hình cố định với fragment `#/reset-password`. Frontend chỉ gửi token qua POST khi người dùng xác nhận mật khẩu mới.
 
 Các ca đăng ký, reset một lần, thu hồi phiên và khôi phục qua hộp thư thử được ghi trong [bằng chứng nghiệm thu G1](../development/acceptance/g1-account-acceptance.md).
+
+## Ảnh đại diện và lịch luyện tập
+
+| Phương thức và đường dẫn dưới `/api/v1` | Hành vi |
+| --- | --- |
+| `GET /profile/me/avatar` | Trả PNG đã xử lý của người đang đăng nhập. Trả 404 khi chưa có ảnh hoặc tệp đã mất. |
+| `GET /profile/me/avatar/{key}` | Trả PNG khi khóa khớp với ảnh hiện tại của người đang đăng nhập. URL nằm trong `avatarUrl` của hồ sơ. |
+| `PUT /profile/me/avatar` | Nhận multipart với trường `file`. Trả `{avatarUrl}` sau khi tệp đã lưu và hồ sơ đã cập nhật. |
+| `DELETE /profile/me/avatar` | Bỏ ảnh của người đang đăng nhập, trả 204. |
+| `GET /profile/me/practice-schedule` | Trả lịch đã lưu hoặc `null` nếu chưa thiết lập. |
+| `PUT /profile/me/practice-schedule` | Nhận `days` từ 1 (Thứ Hai) tới 7 (Chủ nhật), `localTime` dạng `HH:mm`, `timeZone` IANA, `enabled` và `emailReminderEnabled`. Trả lịch đã lưu, `nextOccurrenceAt` theo UTC và `emailReminderAvailable` theo cấu hình backend. Lưu lại cùng thiết lập giữ nguyên các lời nhắc đang chờ. |
+
+Lưu lịch với `emailReminderEnabled=true` là xác nhận nhận email tại địa chỉ đăng ký khi đến giờ. Backend gửi khi lịch còn bật, tùy chọn còn hiệu lực và SMTP nhắc học đã được cấu hình. Kết quả lưu lịch xác nhận cấu hình, còn trạng thái `SENT` của tác vụ cho biết SMTP đã nhận thư. [Cấu hình nhắc học](../development/setup.md#nhắc-luyện-tập-qua-email).

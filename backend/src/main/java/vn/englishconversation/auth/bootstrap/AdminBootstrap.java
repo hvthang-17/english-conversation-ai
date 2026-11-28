@@ -4,7 +4,7 @@ import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,7 @@ import vn.englishconversation.user.entity.UserAccount;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Component
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AdminBootstrap implements ApplicationRunner {
   private final boolean enabled;
   private final String email, password;

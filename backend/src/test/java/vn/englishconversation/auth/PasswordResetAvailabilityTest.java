@@ -11,7 +11,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import vn.englishconversation.auth.security.TokenCipher;
 import vn.englishconversation.auth.service.AccountLifecycleService;
 import vn.englishconversation.auth.service.AccountRateLimiter;
-import vn.englishconversation.common.repository.JdbcStore;
+import vn.englishconversation.auth.repository.AccountLifecycleRepository;
 import vn.englishconversation.mail.provider.MailGateway;
 import vn.englishconversation.user.entity.UserAccount;
 import vn.englishconversation.user.repository.UserRepository;
@@ -19,7 +19,7 @@ import vn.englishconversation.user.repository.UserRepository;
 class PasswordResetAvailabilityTest {
   @Test
   void disabledMailAcceptsResetRequestWithoutQueuing() {
-    var db = mock(JdbcStore.class);
+    var db = mock(AccountLifecycleRepository.class);
     var users = mock(UserRepository.class);
     var rates = mock(AccountRateLimiter.class);
     var manager = mock(PlatformTransactionManager.class);

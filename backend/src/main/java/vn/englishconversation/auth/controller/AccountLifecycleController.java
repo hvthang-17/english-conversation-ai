@@ -3,7 +3,7 @@ package vn.englishconversation.auth.controller;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
@@ -14,7 +14,7 @@ import vn.englishconversation.auth.service.AccountRateLimiter;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AccountLifecycleController {
   private final AccountLifecycleService lifecycle;
   private final AccountRateLimiter rateLimiter;

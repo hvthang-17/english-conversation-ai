@@ -3,7 +3,7 @@ package vn.englishconversation.auth.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,7 +20,7 @@ import vn.englishconversation.user.entity.UserAccount;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AccountService {
   private final UserRepository users;
   private final PasswordEncoder encoder;
@@ -80,9 +80,27 @@ public class AccountService {
     u.role = "LEARNER";
     u.status = "ACTIVE";
     u.createdAt = u.updatedAt = Instant.now();
-    users.saveAndFlush(u);
+    try {
+      users.saveAndFlush(u);
+    } catch (org.springframework.dao.DataIntegrityViolationException conflict) {
+      if (emailConflict(conflict))
+        throw new ApiException(409, "ACCOUNT_CONFLICT", "Không thể tạo tài khoản với email này.");
+      throw conflict;
+    }
     profiles.createDefault(u.id);
     return view(u);
+  }
+
+  private static boolean emailConflict(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      if (cause instanceof org.hibernate.exception.ConstraintViolationException constraint) {
+        String name = constraint.getConstraintName();
+        if (name == null) return false;
+        name = name.replace("`", "").replace("\"", "");
+        return "uk_users_email".equalsIgnoreCase(name.substring(name.lastIndexOf('.') + 1));
+      }
+    }
+    return false;
   }
 
   @Transactional

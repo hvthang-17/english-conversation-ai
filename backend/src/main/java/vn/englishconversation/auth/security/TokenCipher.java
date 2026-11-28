@@ -6,11 +6,11 @@ import java.util.*;
 import javax.crypto.Cipher;
 import javax.crypto.spec.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class TokenCipher {
   private final byte[] key;
 

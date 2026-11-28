@@ -40,6 +40,9 @@ import vn.englishconversation.profile.service.PracticeScheduleService;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "app.mail.reminders-enabled=true",
+      "app.mail.enabled=true",
+      "app.mail.host=127.0.0.1",
+      "app.mail.from=fixture@example.test",
       "app.mail.outbox-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "app.mail.poll-ms=3600000",
       "app.account.cleanup-ms=3600000"
@@ -67,7 +70,7 @@ class AccountLifecycleMysqlTest {
   @DynamicPropertySource
   static void isolated(DynamicPropertyRegistry props) {
     String url = System.getenv("G1_TEST_DB_URL");
-    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:3306/g1_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(?:3306|3307|13306)/g1_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use the isolated G1 MySQL test database");
     props.add("spring.datasource.url", () -> url);
   }
@@ -80,18 +83,6 @@ class AccountLifecycleMysqlTest {
       return new FakeMail();
     }
 
-    @Bean
-    PracticeAccessFixture practiceAccessFixture() {
-      return new PracticeAccessFixture();
-    }
-  }
-
-  @TestComponent
-  @RestController
-  static class PracticeAccessFixture {
-    @PostMapping("/api/v1/practice-sessions")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    void acceptPracticeRequest() {}
   }
 
   @Test
@@ -114,7 +105,7 @@ class AccountLifecycleMysqlTest {
   }
 
   @Test
-  void expiredAndCancelledReminderNeverSendsAndAbandonedClaimCanRetry() {
+  void expiredAndCancelledReminderNeverSendsAndAbandonedClaimStaysUnknown() {
     var p = person();
     schedules.save(
         p.principal(), new PracticeScheduleService.Input(List.of(1), "20:00", "UTC", true, true));
@@ -129,11 +120,16 @@ class AccountLifecycleMysqlTest {
         schedule);
     worker.tick();
     assertEquals(
-        "SENT",
+        "UNKNOWN",
         jdbc.queryForObject(
             "SELECT status FROM practice_reminder_deliveries WHERE schedule_id=?",
             String.class,
             schedule));
+    assertEquals(0, mail.messages.stream().filter(m -> m.to.equals(p.email)).count());
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT attempt_count FROM practice_reminder_deliveries WHERE schedule_id=?", Integer.class, schedule));
+    assertEquals("DELIVERY_UNKNOWN", jdbc.queryForObject(
+        "SELECT error_code FROM practice_reminder_deliveries WHERE schedule_id=?", String.class, schedule));
     long count = mail.messages.stream().filter(m -> m.to.equals(p.email)).count();
     jdbc.update(
         "INSERT INTO"
@@ -227,7 +223,8 @@ class AccountLifecycleMysqlTest {
 
     public void send(String to, String subject, String text) {
       assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
-      if (fail) throw new IllegalStateException("Synthetic failure");
+      if (fail) throw new org.springframework.mail.MailSendException(
+          "Synthetic SMTP connection failure", new java.net.ConnectException("Fixture"));
       messages.add(new Message(to, subject, text));
     }
   }
@@ -293,7 +290,7 @@ class AccountLifecycleMysqlTest {
   }
 
   @Test
-  void signupQueuesNoMailAndCanUseProfileImmediately() throws Exception {
+  void signupQueuesNoMailAndCanUseProfileWhileConversationIsDisabled() throws Exception {
     var p = person();
     var browser = new Browser();
     browser.login(p.email);
@@ -301,7 +298,7 @@ class AccountLifecycleMysqlTest {
     assertEquals(0, jdbc.queryForObject(
         "SELECT COUNT(*) FROM account_mail_outbox WHERE user_id=?", Integer.class, p.id));
     assertEquals(403, browser.call("POST", "auth/email-verification/request", Map.of(), true).statusCode());
-    assertEquals(204, browser.call("POST", "practice-sessions", Map.of(), true).statusCode());
+    assertEquals(403, browser.call("POST", "practice-sessions", Map.of(), true).statusCode());
   }
 
   @Test
@@ -492,14 +489,11 @@ class AccountLifecycleMysqlTest {
     var p = person();
     Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
     var local = now.atZone(ZoneOffset.UTC);
-    schedules.save(
-        p.principal(),
-        new PracticeScheduleService.Input(
-            List.of(local.getDayOfWeek().getValue()),
-            local.toLocalTime().toString().substring(0, 5),
-            "UTC",
-            true,
-            true));
+    var input = new PracticeScheduleService.Input(
+        List.of(local.getDayOfWeek().getValue()),
+        local.toLocalTime().toString().substring(0, 5),
+        "UTC", true, true);
+    schedules.save(p.principal(), input);
     jdbc.update(
         "UPDATE practice_schedules SET updated_at=? WHERE user_id=?",
         Timestamp.from(now.minusSeconds(60)),
@@ -512,6 +506,14 @@ class AccountLifecycleMysqlTest {
             "SELECT COUNT(*) FROM practice_reminder_deliveries d JOIN practice_schedules s ON"
                 + " s.id=d.schedule_id WHERE s.user_id=?",
             Integer.class,
+            p.id));
+    schedules.save(p.principal(), input);
+    assertEquals(
+        "PENDING",
+        jdbc.queryForObject(
+            "SELECT d.status FROM practice_reminder_deliveries d JOIN practice_schedules s ON"
+                + " s.id=d.schedule_id WHERE s.user_id=?",
+            String.class,
             p.id));
     mail.fail = true;
     worker.tick();
