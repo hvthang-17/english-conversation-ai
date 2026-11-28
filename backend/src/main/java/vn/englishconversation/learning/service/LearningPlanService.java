@@ -5,18 +5,19 @@ import static vn.englishconversation.learning.dto.LearningPlanData.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.learning.repository.LearningPlanRepository.Plan;
+import vn.englishconversation.learning.repository.LearningPlanRepository.PlanItem;
 import vn.englishconversation.learning.dto.LearningRecommendation.Focus;
 import vn.englishconversation.learning.repository.LearningPlanRepository;
 import vn.englishconversation.learning.repository.LearningStore;
 
 @Service
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.PLANS)
 public class LearningPlanService {
   private final LearningPlanRepository plans;
   private final LearningStore learning;
@@ -46,9 +47,9 @@ public class LearningPlanService {
     var active = plans.active(owner.id());
     if (active.isPresent()) {
       var current = active.get();
-      if (!Objects.equals(input.replaceId(), current.number("id"))
-          || !Objects.equals(input.version(), current.number("version"))) throw stale();
-      plans.archive(current.number("id"));
+      if (!Objects.equals(input.replaceId(), current.id())
+          || !Objects.equals(input.version(), current.version())) throw stale();
+      plans.archive(current.id());
     } else if (input.replaceId() != null || input.version() != null) {
       throw stale();
     }
@@ -60,7 +61,7 @@ public class LearningPlanService {
     writable(owner, id, input.version());
     LocalDate start = input.settings().startDate();
     LocalDate end = endDate(input.settings());
-    if (plans.items(id).stream().map(row -> date(row, "due_date"))
+    if (plans.items(id).stream().map(row -> LocalDate.parse(row.dueDate()))
         .anyMatch(day -> day.isBefore(start) || day.isAfter(end)))
       throw invalid("Khoảng ngày mới phải chứa các mục học đã xếp lịch.");
     plans.edit(id, input.settings(), end);
@@ -78,7 +79,7 @@ public class LearningPlanService {
     String title = title(owner, source);
     String reason = "MANUAL";
     if (Boolean.TRUE.equals(input.recommended())) {
-      String focus = plan.text("focus_skill");
+      String focus = plan.focusSkill();
       reason = recommendations.suggest(owner.id(), focus == null ? null : Focus.valueOf(focus)).stream()
           .filter(item -> item.type().equals(source.type().name()) && item.id().equals(source.id().toString()))
           .findFirst().orElseThrow(() -> invalid("Gợi ý đã thay đổi. Hãy tải lại danh sách gợi ý.")).reasonCode();
@@ -95,7 +96,7 @@ public class LearningPlanService {
     requireDate(plan, input.dueDate());
     requirePosition(plans.items(id), input.dueDate(), input.position(), itemId);
     if (input.source() != null) plans.replaceSource(itemId, input.source(), title(owner, input.source()));
-    plans.shift(id, date(current, "due_date"), (int) current.number("position") + 1, -1, itemId);
+    plans.shift(id, LocalDate.parse(current.dueDate()), (int) current.position() + 1, -1, itemId);
     plans.shift(id, input.dueDate(), input.position(), 1, itemId);
     plans.moveItem(itemId, input);
     return updated(owner, id);
@@ -106,8 +107,8 @@ public class LearningPlanService {
     writable(owner, id, input.version());
     var current = plannedItem(id, itemId);
     if (input.result() == Result.COMPLETED) {
-      String lesson = current.text("lesson_id");
-      String card = current.text("review_item_id");
+      String lesson = current.lessonId();
+      String card = current.reviewItemId();
       if (lesson == null && card == null) throw invalid("Mục học đã mất nguồn. Hãy thay mục trước khi hoàn thành.");
       title(owner, lesson != null ? new Source(SourceType.LESSON, Long.valueOf(lesson))
           : new Source(SourceType.REVIEW_ITEM, Long.valueOf(card)));
@@ -116,11 +117,11 @@ public class LearningPlanService {
     return updated(owner, id);
   }
 
-  private Row writable(AccountPrincipal owner, long id, long version) {
+  private Plan writable(AccountPrincipal owner, long id, long version) {
     lockOwner(owner);
     var plan = owned(owner, id, true);
-    if (plan.number("version") != version) throw stale();
-    if (!"ACTIVE".equals(plan.text("status")))
+    if (plan.version() != version) throw stale();
+    if (!"ACTIVE".equals(plan.status()))
       throw new ApiException(409, "PLAN_CLOSED", "Kế hoạch đã đóng.");
     return plan;
   }
@@ -130,21 +131,21 @@ public class LearningPlanService {
       throw new ApiException(401, "SESSION_REVOKED", "Vui lòng đăng nhập lại.");
   }
 
-  private Row owned(AccountPrincipal owner, long id, boolean lock) {
+  private Plan owned(AccountPrincipal owner, long id, boolean lock) {
     return plans.plan(owner.id(), id, lock)
         .orElseThrow(() -> new ApiException(404, "PLAN_NOT_FOUND", "Không tìm thấy kế hoạch."));
   }
 
-  private Row plannedItem(long plan, long item) {
+  private PlanItem plannedItem(long plan, long item) {
     var row = plans.item(plan, item)
         .orElseThrow(() -> new ApiException(404, "PLAN_ITEM_NOT_FOUND", "Không tìm thấy mục học."));
-    if (!"PLANNED".equals(row.text("status")))
+    if (!"PLANNED".equals(row.status()))
       throw new ApiException(409, "PLAN_ITEM_CLOSED", "Mục học đã hoàn thành hoặc đã bỏ qua.");
     return row;
   }
 
   private String title(AccountPrincipal owner, Source source) {
-    return plans.source(owner.id(), source).map(row -> row.text("title"))
+    return plans.source(owner.id(), source).map(row -> row.title())
         .orElseThrow(() -> new ApiException(404, "PLAN_SOURCE_UNAVAILABLE", "Nguồn học không còn khả dụng."));
   }
 
@@ -153,19 +154,18 @@ public class LearningPlanService {
     return detail(owner, id);
   }
 
-  private Detail view(Row plan) {
-    return new Detail(summary(plan), plans.items(plan.number("id")).stream().map(row -> new Item(
-        row.text("id"), date(row, "due_date"), (int) row.number("position"),
-        row.text("lesson_id"), row.text("review_item_id"), row.text("source_title_snapshot"), row.flag("available"),
-        row.text("reason_code"), row.text("status"), row.text("completed_iso"))).toList());
+  private Detail view(Plan plan) {
+    return new Detail(summary(plan), plans.items(plan.id()).stream().map(row -> new Item(
+        Long.toString(row.id()), LocalDate.parse(row.dueDate()), (int) row.position(),
+        row.lessonId(), row.reviewItemId(), row.sourceTitleSnapshot(), row.available(),
+        row.reasonCode(), row.status(), row.completedIso())).toList());
   }
 
-  private static Summary summary(Row row) {
-    return new Summary(row.text("id"), row.text("goal"), row.text("focus_skill"), date(row, "start_date"),
-        date(row, "end_date"), row.text("time_zone"), row.text("status"), row.number("version"));
+  private static Summary summary(Plan row) {
+    return new Summary(Long.toString(row.id()), row.goal(), row.focusSkill(), LocalDate.parse(row.startDate()),
+        LocalDate.parse(row.endDate()), row.timeZone(), row.status(), row.version());
   }
 
-  private static LocalDate date(Row row, String field) { return LocalDate.parse(row.text(field)); }
 
   private static LocalDate endDate(Settings input) {
     if (input.days() != 1 && input.days() != 7) throw invalid("Kế hoạch phải dài 1 hoặc 7 ngày.");
@@ -176,13 +176,13 @@ public class LearningPlanService {
     return end;
   }
 
-  private static void requireDate(Row plan, LocalDate day) {
-    if (day.isBefore(date(plan, "start_date")) || day.isAfter(date(plan, "end_date")))
+  private static void requireDate(Plan plan, LocalDate day) {
+    if (day.isBefore(LocalDate.parse(plan.startDate())) || day.isAfter(LocalDate.parse(plan.endDate())))
       throw invalid("Ngày học phải nằm trong phạm vi kế hoạch.");
   }
 
-  private static void requirePosition(List<Row> items, LocalDate day, int position, long excluded) {
-    long count = items.stream().filter(row -> row.number("id") != excluded && date(row, "due_date").equals(day)).count();
+  private static void requirePosition(List<PlanItem> items, LocalDate day, int position, long excluded) {
+    long count = items.stream().filter(row -> row.id() != excluded && LocalDate.parse(row.dueDate()).equals(day)).count();
     if (position > count + 1) throw invalid("Vị trí vượt số mục của ngày đã chọn.");
   }
 

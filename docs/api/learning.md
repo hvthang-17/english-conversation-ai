@@ -5,7 +5,7 @@ Các route dưới `/api/v1/learning` xác thực bằng Session. Backend xác �
 | Method và route | Kết quả |
 | --- | --- |
 | GET /cards?status=NEEDS_REVIEW&page=0&size=12 | Trang thẻ có `items,page,size,total`. Status tùy chọn, nhận NEEDS_REVIEW hoặc REMEMBERED. |
-| POST /cards/from-suggestion/{suggestion} | Sao chép nội dung và `partOfSpeech` (nếu có) từ nhận xét SUCCEEDED của owner. Gửi lại trả cùng thẻ và trạng thái hiện tại. |
+| POST /cards/from-suggestion/{suggestion} | Sao chép nội dung và `partOfSpeech` (nếu có) từ nhận xét SUCCEEDED của owner. Gửi lại trả cùng thẻ và trạng thái hiện tại. Mục có `meaningVerified=false` trả HTTP 409 với mã `SUGGESTION_MEANING_UNVERIFIED`. |
 | POST /cards/{id}/attempts | Body `{"result":"REMEMBERED","clientRequestId":"review-request-01"}`. Ghi một attempt FLASHCARD và cập nhật thẻ. |
 | GET /history?page=0&size=12 | Lịch sử mới nhất trước, gồm cả buổi có thể tiếp tục. Cùng định dạng phân trang với thẻ. |
 | DELETE /history/{id} | 204. Xóa buổi, transcript và nhận xét. Thẻ đã lưu giữ bản sao và mất liên kết nguồn. |
@@ -13,6 +13,8 @@ Các route dưới `/api/v1/learning` xác thực bằng Session. Backend xác �
 | GET /stats | Số buổi hoàn thành, tin nhắn LEARNER, ngày luyện, tối đa 30 ngày có luyện gần nhất, chủ đề, số tin nhắn nguồn khác nhau có lỗi theo nhóm và tối đa 5 bài gợi ý. |
 
 Danh sách nhận size từ 1 đến 50. Cùng mã attempt và kết quả được xử lý idempotent. Cùng mã và kết quả khác trả 409. Chi tiết lịch sử dùng lại GET practice-sessions/{id} và GET practice-sessions/{id}/feedback. Khi xin xóa toàn bộ, giao diện yêu cầu xác nhận riêng trước khi gọi DELETE.
+
+Key attempt được dùng chung theo từng thẻ giữa `/cards/{id}/attempts` và `/notebook/{id}/attempts`. FLASHCARD cùng key/result qua hai API chỉ ghi một lượt; mỗi API giữ response riêng như trước. Key đã thuộc SPACED_REVIEW hoặc QUICK_QUIZ không được replay như FLASHCARD qua cards và trả 409 `REQUEST_ID_REUSED`. Hàng FLASHCARD cũ thiếu fingerprint vẫn replay được khi result trùng; không đổi dữ liệu legacy. Tự đánh dấu không khởi tạo hoặc thay đổi lịch spaced. [API sổ tay và ôn tập](lesson-materials.md).
 
 ## Gợi ý học tập G7.1
 
@@ -63,3 +65,7 @@ Các đường dẫn dưới đây bắt đầu từ `/api/v1/learning/progress`
 | PUT `/notifications/{id}/read` | Giữ thời điểm đọc lần đầu. ID thuộc người khác trả 404. |
 
 Thời lượng hiển thị là ước lượng từ hoạt động hợp lệ. Trình duyệt theo dõi tương tác trong vùng luyện tập và mở luồng mới khi người học quay lại sau khoảng không hoạt động. Thời gian qua nửa đêm dùng múi giờ hồ sơ. Ba ngày đủ 60 giây kích hoạt huy hiệu qua heartbeat. SMTP nhắc học mặc định tắt. Bật `MAIL_REMINDERS_ENABLED` và cấu hình Mailpit để thử email loopback. Lỗi kết nối SMTP xác định trước khi gửi được thử lại có giới hạn. Một lần gửi mà worker mất lease hoặc gặp lỗi không xác định được kết quả được ghi `UNKNOWN` và giữ lại để truy vết.
+
+## Tương thích sau BR-09
+
+Route, DTO và quy tắc owner của learning/history và learning/stats giữ nguyên. Lịch sử sắp started_at giảm dần, sau đó id giảm dần; trang vượt tổng trả items rỗng, tổng vẫn là tổng của owner. Thống kê tiếp tục dùng Asia/Ho_Chi_Minh, đếm tin nhắn LEARNER theo hợp đồng cũ. Buổi chỉ được đánh dấu COMPLETED khi có trao đổi thành công; chỉ mở đầu hoặc chỉ gửi lỗi là ABANDONED. Xóa buổi giữ bản sao thẻ và gỡ nguồn, xóa toàn bộ dọn cả thẻ/lộ trình/tiến độ và dữ liệu nghe/phát âm. Backend conversation sở hữu xóa buổi; learning điều phối xóa toàn bộ trong cùng transaction.

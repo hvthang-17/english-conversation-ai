@@ -3,7 +3,7 @@ package vn.englishconversation.learning.controller;
 import static vn.englishconversation.learning.dto.NotebookData.*;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +12,7 @@ import vn.englishconversation.learning.service.NotebookService;
 
 @RestController
 @RequestMapping("/api/v1/learning/notebook")
-@Profile("!bootstrap & !g1 & !g2")
+@FeatureEnabled(FeatureEnabled.Feature.MATERIALS)
 public class NotebookController {
   private final NotebookService notebook;
 

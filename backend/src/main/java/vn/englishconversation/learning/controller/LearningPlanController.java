@@ -4,7 +4,7 @@ import static vn.englishconversation.learning.dto.LearningPlanData.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +13,7 @@ import vn.englishconversation.learning.service.LearningPlanService;
 
 @RestController
 @RequestMapping("/api/v1/learning/plans")
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.PLANS)
 public class LearningPlanController {
   private final LearningPlanService plans;
 

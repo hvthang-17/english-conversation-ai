@@ -1,14 +1,14 @@
 package vn.englishconversation.learning.repository;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 import vn.englishconversation.learning.dto.LearningRecommendation.Focus;
 
 @Repository
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.LEARNING)
 public class RecommendationRepository {
   private final JdbcStore db;
 
@@ -16,7 +16,7 @@ public class RecommendationRepository {
     this.db = db;
   }
 
-  public java.util.Optional<Row> difficulty(long owner, int promotion, int remediation) {
+  private java.util.Optional<Row> difficultyRows(long owner, int promotion, int remediation) {
     return db.find("""
         WITH latest AS (
           SELECT a.id,a.score,a.max_score,a.grading_version,a.submitted_at,e.id AS exercise_id,
@@ -54,7 +54,7 @@ public class RecommendationRepository {
         """, owner, promotion, remediation);
   }
 
-  public List<Row> cards(long owner) {
+  private List<Row> cardsRows(long owner) {
     return db.rows("""
         SELECT id,expression FROM review_items
         WHERE user_id=? AND status='NEEDS_REVIEW'
@@ -62,7 +62,7 @@ public class RecommendationRepository {
         """, owner);
   }
 
-  public List<Row> lessons(long owner, Focus focus, int limit) {
+  private List<Row> lessonsRows(long owner, Focus focus, int limit) {
     return db.rows("""
         WITH recent_listening AS (
           SELECT exercise_id,score,max_score,
@@ -109,4 +109,14 @@ public class RecommendationRepository {
         LIMIT ?
         """, owner, owner, focus == null ? "" : focus.name(), owner, limit);
   }
+
+  public record Difficulty(String level) {}
+  private static Difficulty mapDifficulty(Row row) { return new Difficulty(row.text("level")); }
+  public record CardSource(String id,String expression) {}
+  private static CardSource mapCardSource(Row row) { return new CardSource(row.text("id"),row.text("expression")); }
+  public record LessonSource(String id,String title,String level,String topic,boolean listeningGap,boolean conversationGap,boolean focusMatch,boolean interested) {}
+  private static LessonSource mapLessonSource(Row row) { return new LessonSource(row.text("id"),row.text("title"),row.text("level"),row.text("topic"),row.flag("listening_gap"),row.flag("conversation_gap"),row.flag("focus_match"),row.flag("interested")); }
+  public java.util.Optional<Difficulty> difficulty(long owner,int promotion,int remediation) { return difficultyRows(owner,promotion,remediation).map(RecommendationRepository::mapDifficulty); }
+  public java.util.List<CardSource> cards(long owner) { return cardsRows(owner).stream().map(RecommendationRepository::mapCardSource).toList(); }
+  public java.util.List<LessonSource> lessons(long owner,Focus focus,int limit) { return lessonsRows(owner,focus,limit).stream().map(RecommendationRepository::mapLessonSource).toList(); }
 }

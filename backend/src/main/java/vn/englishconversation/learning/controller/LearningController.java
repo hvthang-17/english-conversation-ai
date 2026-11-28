@@ -3,7 +3,7 @@ package vn.englishconversation.learning.controller;
 import static vn.englishconversation.learning.dto.LearningData.*;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +12,7 @@ import vn.englishconversation.learning.service.LearningService;
 
 @RestController
 @RequestMapping("/api/v1/learning")
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.LEARNING)
 public class LearningController {
   private final LearningService learning;
 

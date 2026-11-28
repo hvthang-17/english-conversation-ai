@@ -5,27 +5,27 @@ import static vn.englishconversation.learning.dto.LearningPlanData.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("g6 | (!bootstrap & !g1 & !g2 & !g3 & !g4 & !g5)")
+@FeatureEnabled(FeatureEnabled.Feature.PLANS)
 public class LearningPlanRepository {
   private final JdbcStore db;
 
   public LearningPlanRepository(JdbcStore db) { this.db = db; }
 
-  public Optional<Row> active(long owner) {
+  private Optional<Row> activeRows(long owner) {
     return db.find("SELECT * FROM learning_plans WHERE user_id=? AND status='ACTIVE' FOR UPDATE", owner);
   }
 
-  public Optional<Row> plan(long owner, long id, boolean lock) {
+  private Optional<Row> planRows(long owner, long id, boolean lock) {
     return db.find("SELECT * FROM learning_plans WHERE user_id=? AND id=?" + (lock ? " FOR UPDATE" : ""), owner, id);
   }
 
-  public List<Row> list(long owner, int offset) {
+  private List<Row> listRows(long owner, int offset) {
     return db.rows("SELECT * FROM learning_plans WHERE user_id=? ORDER BY id DESC LIMIT 20 OFFSET ?", owner, offset);
   }
 
@@ -54,7 +54,7 @@ public class LearningPlanRepository {
     db.update("UPDATE learning_plans SET version=version+1,updated_at=UTC_TIMESTAMP(6) WHERE id=?", id);
   }
 
-  public List<Row> items(long plan) {
+  private List<Row> itemsRows(long plan) {
     return db.rows("""
         SELECT i.*, COALESCE(c.id IS NOT NULL OR (l.status='ACTIVE' AND t.is_active),FALSE) AS available,
                DATE_FORMAT(i.completed_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS completed_iso
@@ -65,11 +65,11 @@ public class LearningPlanRepository {
         """, plan);
   }
 
-  public Optional<Row> item(long plan, long id) {
+  private Optional<Row> itemRows(long plan, long id) {
     return db.find("SELECT * FROM learning_plan_items WHERE plan_id=? AND id=?", plan, id);
   }
 
-  public Optional<Row> source(long owner, Source source) {
+  private Optional<Row> sourceRows(long owner, Source source) {
     return switch (source.type()) {
       case LESSON -> db.find("""
           SELECT l.title FROM lessons l JOIN topics t ON t.id=l.topic_id
@@ -114,4 +114,17 @@ public class LearningPlanRepository {
   private static Long lesson(Source source) { return source.type() == SourceType.LESSON ? source.id() : null; }
   private static Long card(Source source) { return source.type() == SourceType.REVIEW_ITEM ? source.id() : null; }
   private static String focus(Settings settings) { return settings.focusSkill() == null ? null : settings.focusSkill().name(); }
+
+  public record Plan(long id,String goal,String focusSkill,String startDate,String endDate,String timeZone,String status,long version) {}
+  private static Plan mapPlan(Row row) { return new Plan(row.number("id"),row.text("goal"),row.text("focus_skill"),row.text("start_date"),row.text("end_date"),row.text("time_zone"),row.text("status"),row.number("version")); }
+  public record PlanItem(long id,String dueDate,long position,String lessonId,String reviewItemId,String sourceTitleSnapshot,boolean available,String reasonCode,String status,String completedIso) {}
+  private static PlanItem mapPlanItem(Row row) { return new PlanItem(row.number("id"),row.text("due_date"),row.number("position"),row.text("lesson_id"),row.text("review_item_id"),row.text("source_title_snapshot"),Boolean.TRUE.equals(row.data().get("available")) || row.data().get("available") instanceof Number n && n.longValue()!=0,row.text("reason_code"),row.text("status"),row.text("completed_iso")); }
+  public record SourceTitle(String title) {}
+  private static SourceTitle mapSourceTitle(Row row) { return new SourceTitle(row.text("title")); }
+  public java.util.Optional<Plan> active(long owner) { return activeRows(owner).map(LearningPlanRepository::mapPlan); }
+  public java.util.Optional<Plan> plan(long owner,long id,boolean lock) { return planRows(owner,id,lock).map(LearningPlanRepository::mapPlan); }
+  public java.util.List<Plan> list(long owner,int offset) { return listRows(owner,offset).stream().map(LearningPlanRepository::mapPlan).toList(); }
+  public java.util.List<PlanItem> items(long plan) { return itemsRows(plan).stream().map(LearningPlanRepository::mapPlanItem).toList(); }
+  public java.util.Optional<PlanItem> item(long plan,long id) { return itemRows(plan,id).map(LearningPlanRepository::mapPlanItem); }
+  public java.util.Optional<SourceTitle> source(long owner,Source source) { return sourceRows(owner,source).map(LearningPlanRepository::mapSourceTitle); }
 }

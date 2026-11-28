@@ -4,13 +4,13 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.PROGRESS)
 public class ProgressRepository {
   private final JdbcStore db;
   public ProgressRepository(JdbcStore db) { this.db = db; }
@@ -22,7 +22,7 @@ public class ProgressRepository {
     db.update("DELETE FROM notifications WHERE user_id=? AND kind='RESULT'", owner);
   }
 
-  public Optional<Row> lesson(long id) {
+  private Optional<Row> lessonRows(long id) {
     return db.find("""
         SELECT l.id, (EXISTS(SELECT 1 FROM listening_exercises e WHERE e.lesson_id=l.id AND e.status='ACTIVE')
           OR EXISTS(SELECT 1 FROM pronunciation_drills d WHERE d.lesson_id=l.id AND d.status='ACTIVE')) AS assessed,
@@ -44,14 +44,14 @@ public class ProgressRepository {
         """, owner, lesson);
   }
 
-  public Optional<Row> listeningLesson(long owner, long attempt) {
+  private Optional<Row> listeningLessonRows(long owner, long attempt) {
     return db.find("""
         SELECT e.lesson_id FROM listening_attempts a JOIN listening_exercises e ON e.id=a.exercise_id
         WHERE a.id=? AND a.user_id=? AND a.status='SUBMITTED'
         """, attempt, owner);
   }
 
-  public Optional<Row> pronunciationLesson(long owner, long attempt) {
+  private Optional<Row> pronunciationLessonRows(long owner, long attempt) {
     return db.find("""
         SELECT d.lesson_id FROM pronunciation_attempts a JOIN pronunciation_drills d ON d.id=a.drill_id
         WHERE a.id=? AND a.user_id=? AND a.status='SUCCEEDED' AND a.overall_score IS NOT NULL
@@ -70,11 +70,11 @@ public class ProgressRepository {
         """, owner, event, stream, kind, Timestamp.from(start), Timestamp.from(end));
   }
 
-  public List<Row> intervals(long owner) {
+  private List<Row> intervalsRows(long owner) {
     return db.rows("SELECT DATE_FORMAT(started_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS started_at,DATE_FORMAT(ended_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS ended_at FROM study_intervals WHERE user_id=? AND started_at<ended_at ORDER BY study_intervals.started_at,id", owner);
   }
 
-  public Row profile(long owner) {
+  private Row profileRows(long owner) {
     return db.find("""
         SELECT p.selected_level,p.daily_goal_minutes,COALESCE(s.time_zone,'Asia/Ho_Chi_Minh') AS time_zone
         FROM learner_profiles p LEFT JOIN practice_schedules s ON s.user_id=p.user_id WHERE p.user_id=?
@@ -85,7 +85,7 @@ public class ProgressRepository {
     return db.count("SELECT COUNT(*) FROM lesson_completions WHERE user_id=?", owner);
   }
 
-  public List<Row> completionHistory(long owner) {
+  private List<Row> completionHistoryRows(long owner) {
     return db.rows("""
         SELECT l.id,l.title,(l.status='ACTIVE' AND t.is_active) AS available,
           DATE_FORMAT(c.completed_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS time
@@ -101,7 +101,7 @@ public class ProgressRepository {
         """, owner);
   }
 
-  public List<Row> topics(long owner, String level) {
+  private List<Row> topicsRows(long owner, String level) {
     return db.rows("""
         SELECT t.id,t.name,COUNT(l.id) AS total,COUNT(c.lesson_id) AS completed
         FROM topics t LEFT JOIN lessons l ON l.topic_id=t.id AND l.status='ACTIVE' AND l.level=?
@@ -110,7 +110,7 @@ public class ProgressRepository {
         """, level, owner);
   }
 
-  public List<Row> listening(long owner) {
+  private List<Row> listeningRows(long owner) {
     return db.rows("""
         SELECT a.id,e.title,l.level,a.score,a.max_score,a.grading_version,
           DATE_FORMAT(a.submitted_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS time,
@@ -122,7 +122,7 @@ public class ProgressRepository {
         """, owner);
   }
 
-  public List<Row> pronunciation(long owner) {
+  private List<Row> pronunciationRows(long owner) {
     return db.rows("""
         SELECT id,mode,drill_mode,locale,assessment_version,provider,overall_score,status,
           DATE_FORMAT(COALESCE(scored_at,created_at),'%Y-%m-%dT%H:%i:%s.%fZ') AS time
@@ -131,7 +131,7 @@ public class ProgressRepository {
         """, owner);
   }
 
-  public List<Row> repeatedErrors(long owner) {
+  private List<Row> repeatedErrorsRows(long owner) {
     return db.rows("""
         SELECT i.rule_code,i.category,COUNT(DISTINCT i.source_message_id) AS sentences
         FROM feedback_items i JOIN session_feedback f ON f.id=i.feedback_id AND f.status='SUCCEEDED'
@@ -167,7 +167,7 @@ public class ProgressRepository {
       ))
       """;
 
-  public List<Row> notifications(long owner, int page) {
+  private List<Row> notificationsRows(long owner, int page) {
     return db.rows("""
         SELECT id,kind,title,body,support_ticket_id,(read_at IS NOT NULL) AS is_read,
           DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS time
@@ -180,5 +180,41 @@ public class ProgressRepository {
     db.update("UPDATE notifications n SET read_at=COALESCE(read_at,UTC_TIMESTAMP(6)) WHERE n.id=? AND " + VISIBLE_NOTIFICATION,
         id, owner);
     return true;
+  }
+
+  public record LessonState(boolean assessed,boolean hasMaterials) {}
+  private static LessonState mapLessonState(Row row) { return new LessonState(row.flag("assessed"),row.flag("has_materials")); }
+  public record LessonLink(long lessonId) {}
+  private static LessonLink mapLessonLink(Row row) { return new LessonLink(row.number("lesson_id")); }
+  public record Interval(String startedAt,String endedAt) {}
+  private static Interval mapInterval(Row row) { return new Interval(row.text("started_at"),row.text("ended_at")); }
+  public record CompletionRow(String id,String title,String time,boolean available) {}
+  private static CompletionRow mapCompletionRow(Row row) { return new CompletionRow(row.text("id"),row.text("title"),row.text("time"),row.flag("available")); }
+  public record TopicRow(String id,String name,long total,long completed) {}
+  private static TopicRow mapTopicRow(Row row) { return new TopicRow(row.text("id"),row.text("name"),row.number("total"),row.number("completed")); }
+  public record ListeningRow(String id,String title,String level,String gradingVersion,String questionFormat,String time,Integer score,Integer maxScore) {}
+  private static ListeningRow mapListeningRow(Row row) { return new ListeningRow(row.text("id"),row.text("title"),row.text("level"),row.text("grading_version"),row.text("question_format"),row.text("time"),(row.data().get("score") instanceof Number n ? n.intValue() : null),(row.data().get("max_score") instanceof Number n ? n.intValue() : null)); }
+  public record PronunciationRow(String id,String mode,String drillMode,String locale,String provider,String assessmentVersion,String time,java.math.BigDecimal overallScore) {}
+  private static PronunciationRow mapPronunciationRow(Row row) { return new PronunciationRow(row.text("id"),row.text("mode"),row.text("drill_mode"),row.text("locale"),row.text("provider"),row.text("assessment_version"),row.text("time"),(java.math.BigDecimal) row.data().get("overall_score")); }
+  public record ErrorRow(String ruleCode,String category,long sentences) {}
+  private static ErrorRow mapErrorRow(Row row) { return new ErrorRow(row.text("rule_code"),row.text("category"),row.number("sentences")); }
+  public record NotificationRow(String id,String kind,String title,String body,String time,String supportTicketId,boolean isRead) {}
+  private static NotificationRow mapNotificationRow(Row row) { return new NotificationRow(row.text("id"),row.text("kind"),row.text("title"),row.text("body"),row.text("time"),row.text("support_ticket_id"),row.flag("is_read")); }
+  public java.util.Optional<LessonState> lesson(long id) { return lessonRows(id).map(ProgressRepository::mapLessonState); }
+  public java.util.Optional<LessonLink> listeningLesson(long owner,long attempt) { return listeningLessonRows(owner,attempt).map(ProgressRepository::mapLessonLink); }
+  public java.util.Optional<LessonLink> pronunciationLesson(long owner,long attempt) { return pronunciationLessonRows(owner,attempt).map(ProgressRepository::mapLessonLink); }
+  public java.util.List<Interval> intervals(long owner) { return intervalsRows(owner).stream().map(ProgressRepository::mapInterval).toList(); }
+  public java.util.List<CompletionRow> completionHistory(long owner) { return completionHistoryRows(owner).stream().map(ProgressRepository::mapCompletionRow).toList(); }
+  public java.util.List<TopicRow> topics(long owner,String level) { return topicsRows(owner,level).stream().map(ProgressRepository::mapTopicRow).toList(); }
+  public java.util.List<ListeningRow> listening(long owner) { return listeningRows(owner).stream().map(ProgressRepository::mapListeningRow).toList(); }
+  public java.util.List<PronunciationRow> pronunciation(long owner) { return pronunciationRows(owner).stream().map(ProgressRepository::mapPronunciationRow).toList(); }
+  public java.util.List<ErrorRow> repeatedErrors(long owner) { return repeatedErrorsRows(owner).stream().map(ProgressRepository::mapErrorRow).toList(); }
+  public java.util.List<NotificationRow> notifications(long owner,int page) { return notificationsRows(owner,page).stream().map(ProgressRepository::mapNotificationRow).toList(); }
+
+  public record ProfileState(String selectedLevel,String timeZone,Integer dailyGoalMinutes) {}
+  public ProfileState profile(long owner) {
+    Row row=profileRows(owner);
+    return new ProfileState(row.text("selected_level"),row.text("time_zone"),
+      row.data().get("daily_goal_minutes") instanceof Number n ? n.intValue() : null);
   }
 }
