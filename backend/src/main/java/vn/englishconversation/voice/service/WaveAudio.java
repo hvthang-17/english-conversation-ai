@@ -11,19 +11,23 @@ import vn.englishconversation.common.exception.ApiException;
 
 public record WaveAudio(byte[] bytes, int durationMillis, String digest) {
   public static final String MIME = "audio/wav";
+  public static final int CONVERSATION_MAX_SECONDS = 30;
   private static final int SAMPLE_RATE = 16000;
   private static final int HEADER = 44;
-  private static final int MAX_BYTES = HEADER + SAMPLE_RATE * 2 * 60;
-
   public static WaveAudio read(MultipartFile file) {
+    return read(file, 60);
+  }
+
+  public static WaveAudio read(MultipartFile file, int maxSeconds) {
+    int maxBytes = HEADER + SAMPLE_RATE * 2 * maxSeconds;
     if (!MIME.equalsIgnoreCase(file.getContentType()) || file.getSize() <= HEADER)
       throw invalid();
-    if (file.getSize() > MAX_BYTES)
-      throw new ApiException(413, "AUDIO_TOO_LARGE", "Bản ghi tối đa 60 giây.");
+    if (file.getSize() > maxBytes)
+      throw new ApiException(413, "AUDIO_TOO_LARGE", "Bản ghi tối đa " + maxSeconds + " giây.");
     try {
       byte[] bytes = file.getBytes();
       int data = bytes.length - HEADER;
-      if (data <= 0 || data % 2 != 0 || bytes.length > MAX_BYTES) throw invalid();
+      if (data <= 0 || data % 2 != 0 || bytes.length > maxBytes) throw invalid();
       ByteBuffer pcm = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
       if (pcm.getInt(0) != 0x46464952 || pcm.getInt(4) != bytes.length - 8
           || pcm.getInt(8) != 0x45564157 || pcm.getInt(12) != 0x20746d66

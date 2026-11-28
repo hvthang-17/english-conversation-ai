@@ -10,7 +10,7 @@ Các đường dẫn dưới đây dùng tiền tố `/api/v1/practice-sessions/
 | POST | `/{audioId}/confirm` | JSON `{"content":"I would like soup, please.","assessPronunciation":true}`. Kiểm tra 1–1000 ký tự và giới hạn đầu vào đã cấu hình. Trả về buổi luyện cập nhật theo [API hội thoại](practice.md) |
 | DELETE | `/{audioId}` | Hủy nháp hoặc tác vụ đã thất bại và trả HTTP 204. Tác vụ đang xử lý hoặc bản đã xác nhận trả HTTP 409 |
 
-Định dạng upload là `audio/wav`, RIFF WAV chuẩn 44 byte, PCM tuyến tính 16-bit little-endian, mono 16 kHz, tối đa 60 giây và 1.920.044 byte kể cả header. Máy chủ đối chiếu header với kích thước thực, từ chối codec sai, file rỗng và PCM toàn số 0. Nội dung vượt dung lượng trả 413.
+Định dạng upload là `audio/wav`, RIFF WAV chuẩn 44 byte, PCM tuyến tính 16-bit little-endian, mono 16 kHz. Giới hạn mới cho VOICE là **30 giây và 960.044 byte** kể cả header. Máy chủ đối chiếu header với kích thước thực, từ chối codec sai, file rỗng và PCM toàn số 0. Bản ghi vượt giới hạn trả 413 `AUDIO_TOO_LARGE` trước khi tạo tác vụ chép lời. Bản nháp dài hơn đã được lưu trước thay đổi vẫn xác nhận được khi còn hạn.
 
 Phản hồi gồm `id` dạng chuỗi, `status` (`TRANSCRIBING`, `READY`, `CONFIRMED`, `FAILED`, `EXPIRED`), `transcript`, `expiresAt` theo UTC, `durationMillis`, `errorCode`, `retryable`, `unknown` và `retryAt`. Transcript chỉ có trong trạng thái READY và còn hạn. Đường dẫn file và dữ liệu audio thuộc máy chủ.
 
@@ -21,3 +21,11 @@ Gửi lại cùng key và cùng file đọc trạng thái hiện có. Gửi file
 Giao diện G6 mặc định đặt `assessPronunciation=true` khi phiên làm việc bật chấm và bản ghi dài tối đa 30 giây. Backend chỉ xếp lịch Azure từ audio gốc còn hạn. CHAT xử lý bản chép đã xác nhận độc lập với Azure.
 
 Sau khi xác nhận, việc gửi lại cùng bản ghi và cùng nội dung trả trạng thái hội thoại hiện có. Thay nội dung sau khi đã xác nhận trả 409. Nếu Gemini lỗi ở bước CHAT, câu LEARNER đã chấp nhận vẫn còn trong hội thoại và dùng nút thử lại phản hồi hiện có.
+
+## Trạng thái chấm phát âm
+
+Trạng thái theo lượt có từ V31. [ADR 0016](../decisions/0016-g6-direct-voice-submission.md#giới-hạn-30-giây-và-trạng-thái-chấm-theo-lượt).
+
+DTO tin người học phát từ audio trả trạng thái chấm ngay cả khi chưa có `pronunciation_attempts`. Trả `PENDING_PREPARATION` khi đã lưu yêu cầu chuẩn bị, `SKIPPED` hoặc `FAILED` nếu dừng trước khi tạo lượt chấm. Khi đã có lượt chấm, trạng thái và điểm lấy từ lượt đó. Với dữ liệu cũ thiếu bằng chứng, trả `NOT_RECORDED`. Tin nhập bằng bàn phím không có trạng thái chấm.
+
+`errorCode` giải thích các trường hợp như `TOO_LONG`, `AUDIO_EXPIRED`, `AUDIO_MISSING`, `PREPARATION_FAILED` hoặc `ASSESSMENT_DISABLED`. Khi đã có tác vụ Azure, dùng mã lỗi được lưu của lượt chấm, gồm hạn mức hoặc không đủ bằng chứng. Điểm thiếu trả `null`. Gửi xác nhận lặp dùng lại trạng thái đã lưu và giữ tối đa một lượt chấm trên mỗi bản ghi.
