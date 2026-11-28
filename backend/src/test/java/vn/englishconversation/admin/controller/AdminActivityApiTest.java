@@ -24,7 +24,21 @@ import vn.englishconversation.user.repository.UserRepository;
 @ActiveProfiles("g6")
 class AdminActivityApiTest {
   @Autowired MockMvc mvc;
+  @Test
+  void unlistedRoutesAreDeniedEvenForAuthenticatedAdmin() throws Exception {
+    mvc.perform(get("/api/v1/not-enabled").with(user("admin").roles("ADMIN")))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/learning/notebook/42/quiz").with(user("learner").roles("LEARNER")))
+        .andExpect(status().isForbidden());
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/learning/notebook/42/quiz")
+        .with(user("learner").roles("LEARNER"))
+        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/learning/notebook/42/attempts").with(user("learner").roles("LEARNER")))
+        .andExpect(status().isForbidden());
+  }
   @MockitoBean AdminActivityService activity;
+  @MockitoBean vn.englishconversation.admin.service.AdminMetricsService metrics;
   @MockitoBean UserRepository users;
 
   @Test
@@ -40,14 +54,14 @@ class AdminActivityApiTest {
   @Test
   void pagedContractCarriesFiltersAndLegacyContractStaysAnArray() throws Exception {
     var row = new AdminActivity("7", "CHAT", "Gemini", "model", null, "FAILED", "0", "2026-11-26 04:00:00");
-    when(activity.list(false, 2, 12, "Gemini", "FAILED")).thenReturn(new AdminPage<>(List.of(row), 2, 12, 31));
+    when(activity.list(false, 2, 12, "Gemini", "FAILED", null)).thenReturn(new AdminPage<>(List.of(row), 2, 12, 31));
     mvc.perform(get("/api/v1/admin/ai-attempts").param("page", "2").param("q", "Gemini").param("status", "FAILED")
         .with(user("admin").roles("ADMIN"))).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(jsonPath("$.page").value(2)).andExpect(jsonPath("$.total").value(31)).andExpect(jsonPath("$.items[0].id").value("7"));
     when(activity.list(true, 0, 50, "", "")).thenReturn(new AdminPage<>(List.of(row), 0, 50, 80));
     mvc.perform(get("/api/v1/admin/audit").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
         .andExpect(jsonPath("$[0].id").value("7"));
-    when(activity.list(true, 1, 24, "Tạo chủ đề", "")).thenReturn(new AdminPage<>(List.of(), 1, 24, 25));
+    when(activity.list(true, 1, 24, "Tạo chủ đề", "", null)).thenReturn(new AdminPage<>(List.of(), 1, 24, 25));
     mvc.perform(get("/api/v1/admin/audit").param("page", "1").param("size", "24").param("q", "Tạo chủ đề")
         .with(user("admin").roles("ADMIN"))).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(25));
   }

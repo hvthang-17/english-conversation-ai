@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -15,7 +15,7 @@ import vn.englishconversation.admin.dto.AdminCatalog.*;
 import vn.englishconversation.user.dto.UserResponse;
 
 @Repository
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AdminStore {
   private final JdbcTemplate db;
   private static final String TOPIC_FIELDS = "id,code,name,description,is_active,sort_order";

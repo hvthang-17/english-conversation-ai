@@ -1,7 +1,7 @@
 package vn.englishconversation.admin.controller;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +16,7 @@ import vn.englishconversation.admin.service.AdminMetricsService;
 
 @RestController
 @RequestMapping("/api/v1/admin")
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminActivityController {
   private final AdminActivityService activity;
   private final AdminMetricsService metrics;

@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.admin.dto.AdminActivity;
 import vn.englishconversation.admin.dto.AdminPage;
 import vn.englishconversation.common.repository.JdbcStore;
 
 @Repository
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminActivityStore {
   private static final String AUDIT = """
       SELECT id,action AS activity,target_type AS subject,CAST(target_id AS CHAR) AS reference,

@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.admin.dto.AdminMetrics;
@@ -13,7 +13,7 @@ import vn.englishconversation.admin.repository.AdminMetricsStore;
 import vn.englishconversation.common.exception.ApiException;
 
 @Service
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminMetricsService {
   private final AdminMetricsStore store;
   private final AdminMetrics.Limits limits;

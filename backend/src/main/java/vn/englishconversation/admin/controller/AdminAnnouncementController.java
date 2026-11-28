@@ -3,7 +3,7 @@ package vn.englishconversation.admin.controller;
 import static vn.englishconversation.admin.dto.AdminAnnouncement.*;
 
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.englishconversation.admin.dto.AdminPage;
@@ -11,7 +11,7 @@ import vn.englishconversation.admin.service.AdminAnnouncementService;
 import vn.englishconversation.auth.security.AccountPrincipal;
 
 @RestController
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 @RequestMapping("/api/v1/admin/announcements")
 public class AdminAnnouncementController {
   private final AdminAnnouncementService announcements;

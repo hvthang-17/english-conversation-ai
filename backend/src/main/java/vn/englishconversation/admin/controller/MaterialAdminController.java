@@ -1,7 +1,7 @@
 package vn.englishconversation.admin.controller;
 
 import java.util.Map;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +15,7 @@ import vn.englishconversation.auth.security.AccountPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/admin/materials/{kind}")
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class MaterialAdminController {
   private final MaterialAdminService materials;
 

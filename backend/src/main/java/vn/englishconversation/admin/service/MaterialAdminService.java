@@ -1,7 +1,7 @@
 package vn.englishconversation.admin.service;
 
 import java.util.*;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,8 +15,8 @@ import vn.englishconversation.admin.repository.AdminAudit;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.admin.repository.MaterialAdminRepository;
+import vn.englishconversation.admin.repository.MaterialAdminRepository.*;
 import vn.englishconversation.lesson.dto.LessonMaterials.Line;
 import vn.englishconversation.lesson.service.SampleDialogueFormat;
 import vn.englishconversation.listening.dto.ListeningData.Question;
@@ -24,40 +24,22 @@ import vn.englishconversation.listening.dto.ListeningData.Segment;
 import vn.englishconversation.listening.service.ListeningRules;
 
 @Service
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class MaterialAdminService {
-  private final JdbcStore db;
+  private final MaterialAdminRepository store;
   private final AccountService accounts;
   private final ObjectMapper json;
   private final AdminAudit audit;
 
-  public MaterialAdminService(JdbcStore db, AccountService accounts, ObjectMapper json, AdminAudit audit) {
-    this.db = db;
+  public MaterialAdminService(MaterialAdminRepository store, AccountService accounts, ObjectMapper json, AdminAudit audit) {
+    this.store = store;
     this.accounts = accounts;
     this.json = json;
     this.audit = audit;
   }
 
   @Transactional(readOnly = true)
-  public LessonCatalogOptions lessonCatalogOptions() {
-    var topics = db.rows("SELECT id,name,is_active FROM topics ORDER BY sort_order,name,id").stream()
-        .map(row -> new LessonCatalogOptions.Topic(row.text("id"), row.text("name"), row.flag("is_active")))
-        .toList();
-    var scenarios = db.rows("""
-        SELECT s.id,s.title,s.topic_id,t.name AS topic_name,(s.status='ACTIVE' AND t.is_active) AS visible,
-           (SELECT GROUP_CONCAT(l.level ORDER BY l.level) FROM scenario_levels l WHERE l.scenario_id=s.id) AS levels
-        FROM scenarios s JOIN topics t ON t.id=s.topic_id
-        ORDER BY s.title,s.id
-        """).stream().map(row -> new LessonCatalogOptions.Scenario(row.text("id"), row.text("title"),
-        row.text("topic_id"), row.text("topic_name"), row.flag("visible"),
-        row.text("levels") == null ? List.of() : List.of(row.text("levels").split(",")))).toList();
-    var lessons = db.rows("""
-        SELECT l.id,l.title,l.topic_id,l.level,(l.status='ACTIVE' AND t.is_active) AS visible
-        FROM lessons l JOIN topics t ON t.id=l.topic_id ORDER BY l.title,l.id
-        """).stream().map(row -> new LessonCatalogOptions.Lesson(row.text("id"), row.text("title"),
-        row.text("topic_id"), row.text("level"), row.flag("visible"))).toList();
-    return new LessonCatalogOptions(topics, scenarios, lessons);
-  }
+  public LessonCatalogOptions lessonCatalogOptions() { return store.lessonCatalogOptions(); }
 
   public AdminPage<Map<String, Object>> list(MaterialKind kind, int page, int size) {
     return list(kind, page, size, null);
@@ -68,19 +50,15 @@ public class MaterialAdminService {
     if (expressionKind != null) {
       if (kind != MaterialKind.WORDS || !Set.of("WORD", "PHRASE").contains(expressionKind))
         throw invalid("Loại từ hoặc mẫu câu không hợp lệ.");
-      return new AdminPage<>(db.rows("SELECT * FROM " + kind.table + " WHERE kind=? ORDER BY id DESC LIMIT ? OFFSET ?",
-          expressionKind, size, (long) page * size).stream().map(row -> view(kind, row)).toList(),
-          page, size, db.count("SELECT COUNT(*) FROM " + kind.table + " WHERE kind=?", expressionKind));
     }
-    return new AdminPage<>(db.rows("SELECT * FROM " + kind.table + " ORDER BY id DESC LIMIT ? OFFSET ?",
-        size, (long) page * size).stream().map(row -> view(kind, row)).toList(),
-        page, size, db.count("SELECT COUNT(*) FROM " + kind.table));
+    return new AdminPage<>(store.list(kind,page,size,expressionKind).stream().map(row -> view(kind,row)).toList(),
+        page,size,store.count(kind,expressionKind));
   }
 
   @Transactional
   public Map<String, Object> save(AccountPrincipal actor, MaterialKind kind, Long id, Map<String, JsonNode> input) {
     accounts.requireAdminForWrite(actor);
-    Row previous = id == null ? null : row(kind, id, true);
+    MaterialState previous = id == null ? null : row(kind, id, true);
     if (previous != null && kind != MaterialKind.TOPICS) requireDraft(kind, previous);
     if (!kind.fields.containsAll(input.keySet())) throw invalid("Có trường ngoài hợp đồng học liệu.");
     var fields = new LinkedHashMap<String, Object>();
@@ -97,20 +75,11 @@ public class MaterialAdminService {
     }
     validate(kind, fields, false);
     if (previous != null && kind == MaterialKind.TOPICS && !status(kind, previous).equals("DRAFT")
-        && !previous.text("code").equals(fields.get("code")))
+        && !((TopicContent)previous.content()).code().equals(fields.get("code")))
       throw conflict("Mã chủ đề đã phát hành cần được giữ để bảo toàn các tham chiếu.");
     boolean creating = id == null;
-    String assignments = String.join("=?,", kind.fields) + "=?,updated_at=UTC_TIMESTAMP(6)";
     try {
-      if (id == null) {
-        String draft = kind == MaterialKind.TOPICS ? "is_active=FALSE,admin_draft=TRUE" : "status='DRAFT'";
-        id = db.insert("INSERT INTO " + kind.table + " SET " + assignments + ",created_at=UTC_TIMESTAMP(6)," + draft,
-            fields.values().toArray());
-      } else {
-        var values = new ArrayList<>(fields.values());
-        values.add(id);
-        db.update("UPDATE " + kind.table + " SET " + assignments + " WHERE id=?", values.toArray());
-      }
+      id = store.save(id,content(kind,fields));
     } catch (DataIntegrityViolationException conflict) {
       throw conflict("Mã đã tồn tại hoặc tham chiếu học liệu không hợp lệ.");
     }
@@ -126,16 +95,15 @@ public class MaterialAdminService {
       if (kind == MaterialKind.LISTENING)
         throw conflict("Hãy công bố đề qua API tạo MP3 của Azure.");
       if (status(kind, item).equals("ACTIVE")) return;
-      validate(kind, item.data(), true);
+      validate(kind, fields(item.content()), true);
     } else if (!status(kind, item).equals("ACTIVE")) {
       throw conflict("Chỉ ẩn nội dung đang công khai.");
     }
     if (kind == MaterialKind.TOPICS) {
-      db.update("UPDATE topics SET is_active=?,admin_draft=FALSE,updated_at=UTC_TIMESTAMP(6) WHERE id=?", publish, id);
+      store.change(kind,id,publish);
       audit.catalog(actor.id(), "TOPIC", id, false);
     } else {
-      db.update("UPDATE " + kind.table + " SET status=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?",
-          publish ? "ACTIVE" : "ARCHIVED", id);
+      store.change(kind,id,publish);
     }
   }
 
@@ -143,13 +111,9 @@ public class MaterialAdminService {
   public void deleteDraft(AccountPrincipal actor, MaterialKind kind, long id) {
     accounts.requireAdminForWrite(actor);
     requireDraft(kind, row(kind, id, true));
-    for (String reference : kind.references) {
-      var pair = reference.split(":");
-      if (db.count("SELECT COUNT(*) FROM " + pair[0] + " WHERE " + pair[1] + "=?", id) != 0)
-        throw conflict("Bản nháp có dữ liệu tham chiếu.");
-    }
+    if (store.referenced(kind,id)) throw conflict("Bản nháp có dữ liệu tham chiếu.");
     try {
-      db.update("DELETE FROM " + kind.table + " WHERE id=?", id);
+      store.delete(kind,id);
       if (kind == MaterialKind.TOPICS) audit.catalogDeleted(actor.id(), "TOPIC", id);
     } catch (DataIntegrityViolationException conflict) {
       throw conflict("Bản nháp có dữ liệu tham chiếu.");
@@ -161,9 +125,8 @@ public class MaterialAdminService {
         && (!(data.get("sort_order") instanceof Number order) || order.longValue() < (kind == MaterialKind.TOPICS ? 0 : 1)
           || order.longValue() > Integer.MAX_VALUE)) throw invalid("Thứ tự hiển thị không hợp lệ.");
     if (kind.fields.contains("lesson_id")) {
-      var lesson = db.find("SELECT l.status,t.is_active FROM lessons l JOIN topics t ON t.id=l.topic_id WHERE l.id=?" + (publish ? " FOR SHARE" : ""),
-          data.get("lesson_id")).orElseThrow(() -> invalid("Bài học không tồn tại."));
-      if (publish && (!lesson.flag("is_active") || !"ACTIVE".equals(lesson.text("status"))))
+      var lesson = store.lesson((Long)data.get("lesson_id"),publish).orElseThrow(() -> invalid("Bài học không tồn tại."));
+      if (publish && (!lesson.activeTopic() || !"ACTIVE".equals(lesson.status())))
         throw invalid("Cần công bố bài học và chủ đề trước.");
     }
 
@@ -176,14 +139,11 @@ public class MaterialAdminService {
       }
       case LESSONS -> {
         String level = choice(data, "level", "A2", "B1");
-        var topic = db.find("SELECT is_active FROM topics WHERE id=?" + (publish ? " FOR SHARE" : ""), data.get("topic_id"))
+        var topic = store.topic((Long)data.get("topic_id"),publish)
             .orElseThrow(() -> invalid("Chủ đề không tồn tại."));
-        if (publish && !topic.flag("is_active")) throw invalid("Chủ đề chưa công khai.");
+        if (publish && !topic) throw invalid("Chủ đề chưa công khai.");
         Object scenario = data.get("scenario_id");
-        if (scenario != null && db.count("""
-            SELECT COUNT(*) FROM scenario_levels sl JOIN scenarios s ON s.id=sl.scenario_id
-            JOIN topics t ON t.id=s.topic_id WHERE sl.scenario_id=? AND sl.level=?
-            """ + (publish ? " AND s.status='ACTIVE' AND t.is_active=TRUE" : ""), scenario, level) == 0)
+        if (scenario != null && !store.scenarioSupports((Long)scenario,level,publish))
           throw invalid("Tình huống gợi ý phải hỗ trợ cấp độ của bài và công khai khi phát hành.");
         text(data, "title", 200, true);
         text(data, "summary", 4000, true);
@@ -232,33 +192,93 @@ public class MaterialAdminService {
     }
   }
 
-  private Map<String, Object> view(MaterialKind kind, Row item) {
+  private Map<String, Object> view(MaterialKind kind, MaterialState item) {
     var result = new LinkedHashMap<String, Object>();
-    result.put("id", item.text("id"));
+    result.put("id", Long.toString(item.id()));
     result.put("status", status(kind, item));
+    var data = fields(item.content());
     for (String field : kind.fields) {
-      Object value = item.data().get(field);
-      if (value != null && field.endsWith("_id")) value = item.text(field);
-      if (value != null && field.endsWith("_json")) value = json.readTree(item.text(field));
+      Object value = data.get(field);
+      if (value != null && field.endsWith("_id")) value = value.toString();
+      if (value != null && field.endsWith("_json")) value = json.readTree(value.toString());
       result.put(field, value);
     }
     return result;
   }
 
-  private Row row(MaterialKind kind, long id, boolean lock) {
-    return db.find("SELECT * FROM " + kind.table + " WHERE id=?" + (lock ? " FOR UPDATE" : ""), id)
-        .orElseThrow(() -> new ApiException(404, "MATERIAL_NOT_FOUND", "Không tìm thấy học liệu."));
+  private MaterialState row(MaterialKind kind,long id,boolean lock) {
+    return store.find(kind,id,lock).orElseThrow(() -> new ApiException(404,"MATERIAL_NOT_FOUND","Không tìm thấy học liệu."));
   }
+  private static String status(MaterialKind kind,MaterialState row) { return row.status(); }
 
-  private static String status(MaterialKind kind, Row row) {
-    if (kind != MaterialKind.TOPICS) return row.text("status");
-    if (row.flag("is_active")) return "ACTIVE";
-    return row.flag("admin_draft") ? "DRAFT" : "ARCHIVED";
-  }
-
-  private static void requireDraft(MaterialKind kind, Row row) {
+  private static void requireDraft(MaterialKind kind, MaterialState row) {
     if (!status(kind, row).equals("DRAFT"))
       throw conflict("Chỉ sửa hoặc xóa bản nháp. Có thể tạo bản nháp mới từ nội dung này.");
+  }
+
+  private static Content content(MaterialKind kind,Map<String,Object> fields) { return switch(kind) {
+    case TOPICS -> new TopicContent((String)fields.get("code"),(String)fields.get("name"),(String)fields.get("description"),(Long)fields.get("sort_order"));
+    case LESSONS -> new LessonContent((Long)fields.get("topic_id"),(String)fields.get("level"),(Long)fields.get("scenario_id"),(String)fields.get("title"),(String)fields.get("summary"),(String)fields.get("objective_code"),(String)fields.get("learning_objective"));
+    case WORDS -> new WordContent((Long)fields.get("lesson_id"),(String)fields.get("kind"),(String)fields.get("expression"),(String)fields.get("ipa"),(String)fields.get("meaning_vi"),(String)fields.get("example_en"),(String)fields.get("example_vi"),(String)fields.get("part_of_speech"),(Long)fields.get("sort_order"));
+    case DIALOGUES -> new DialogueContent((Long)fields.get("lesson_id"),(String)fields.get("title"),(String)fields.get("lines_json"),(Long)fields.get("sort_order"));
+    case LISTENING -> new ListeningContent((Long)fields.get("lesson_id"),(String)fields.get("title"),(String)fields.get("instructions"),(String)fields.get("tts_voice_key"),(String)fields.get("transcript_en"),(String)fields.get("translation_vi"),(String)fields.get("script_segments_json"),(String)fields.get("questions_json"),(Long)fields.get("sort_order"));
+    case PRONUNCIATION -> new PronunciationContent((Long)fields.get("lesson_id"),(String)fields.get("reference_text"),(String)fields.get("locale"),(String)fields.get("mode"),(Long)fields.get("sort_order"));
+  }; }
+  private static Map<String,Object> fields(Content content) {
+    var fields=new LinkedHashMap<String,Object>();
+    switch(content) {
+      case TopicContent value -> {
+        fields.put("code",value.code());
+        fields.put("name",value.name());
+        fields.put("description",value.description());
+        fields.put("sort_order",value.sortOrder());
+      }
+      case LessonContent value -> {
+        fields.put("topic_id",value.topicId());
+        fields.put("level",value.level());
+        fields.put("scenario_id",value.scenarioId());
+        fields.put("title",value.title());
+        fields.put("summary",value.summary());
+        fields.put("objective_code",value.objectiveCode());
+        fields.put("learning_objective",value.learningObjective());
+      }
+      case WordContent value -> {
+        fields.put("lesson_id",value.lessonId());
+        fields.put("kind",value.kind());
+        fields.put("expression",value.expression());
+        fields.put("ipa",value.ipa());
+        fields.put("meaning_vi",value.meaningVi());
+        fields.put("example_en",value.exampleEn());
+        fields.put("example_vi",value.exampleVi());
+        fields.put("part_of_speech",value.partOfSpeech());
+        fields.put("sort_order",value.sortOrder());
+      }
+      case DialogueContent value -> {
+        fields.put("lesson_id",value.lessonId());
+        fields.put("title",value.title());
+        fields.put("lines_json",value.linesJson());
+        fields.put("sort_order",value.sortOrder());
+      }
+      case ListeningContent value -> {
+        fields.put("lesson_id",value.lessonId());
+        fields.put("title",value.title());
+        fields.put("instructions",value.instructions());
+        fields.put("tts_voice_key",value.ttsVoiceKey());
+        fields.put("transcript_en",value.transcriptEn());
+        fields.put("translation_vi",value.translationVi());
+        fields.put("script_segments_json",value.scriptSegmentsJson());
+        fields.put("questions_json",value.questionsJson());
+        fields.put("sort_order",value.sortOrder());
+      }
+      case PronunciationContent value -> {
+        fields.put("lesson_id",value.lessonId());
+        fields.put("reference_text",value.referenceText());
+        fields.put("locale",value.locale());
+        fields.put("mode",value.mode());
+        fields.put("sort_order",value.sortOrder());
+      }
+    }
+    return fields;
   }
 
   private static String text(Map<String, Object> data, String field, int max, boolean required) {

@@ -8,7 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.admin.dto.AdminPage;
@@ -17,10 +17,10 @@ import vn.englishconversation.admin.repository.AdminAudit;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.admin.repository.AdminAnnouncementStore.LockedAnnouncement;
 
 @Service
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminAnnouncementService {
   private final AdminAnnouncementStore store;
   private final AccountService accounts;
@@ -54,9 +54,9 @@ public class AdminAnnouncementService {
     String key=input.clientRequestId().toString(), fingerprint=fingerprint(draft);
     var previous=store.previous(actor.id(),key);
     if (previous.isPresent()) {
-      if (!fingerprint.equals(previous.get().text("request_fingerprint")))
+      if (!fingerprint.equals(previous.get().requestFingerprint()))
         throw new ApiException(409,"REQUEST_ID_REUSED","Mã yêu cầu đã được dùng cho nội dung khác.");
-      return store.get(previous.get().number("id"),Instant.now());
+      return store.get(previous.get().id(),Instant.now());
     }
     long id=store.create(actor.id(),draft,key,fingerprint);
     audit.record(actor.id(),"ANNOUNCEMENT_CREATED","ANNOUNCEMENT",id);
@@ -66,10 +66,10 @@ public class AdminAnnouncementService {
   @Transactional
   public View update(AccountPrincipal actor,long id,Save input) {
     accounts.requireAdminForWrite(actor);
-    Row row=lock(id);
+    LockedAnnouncement row=lock(id);
     requireDraft(row,input.version());
     Draft draft=normalize(input.draft());
-    if (!draft.equals(AdminAnnouncementStore.draft(row))) {
+    if (!draft.equals(row.draft())) {
       store.update(id,draft);
       audit.record(actor.id(),"ANNOUNCEMENT_UPDATED","ANNOUNCEMENT",id);
     }
@@ -79,11 +79,11 @@ public class AdminAnnouncementService {
   @Transactional
   public View publish(AccountPrincipal actor,long id,long version) {
     accounts.requireAdminForWrite(actor);
-    Row row=lock(id);
+    LockedAnnouncement row=lock(id);
     Instant now=Instant.now().truncatedTo(ChronoUnit.MICROS);
-    if ("PUBLISHED".equals(row.text("status"))) return store.get(id,now);
+    if ("PUBLISHED".equals(row.status())) return store.get(id,now);
     requireDraft(row,version);
-    Draft draft=normalize(AdminAnnouncementStore.draft(row));
+    Draft draft=normalize(row.draft());
     if (draft.expiresAt()!=null && !draft.expiresAt().isAfter(now))
       throw new ApiException(422,"ANNOUNCEMENT_EXPIRED","Hạn hiển thị phải sau thời điểm công bố.");
     store.publish(id,draft,now);
@@ -94,7 +94,7 @@ public class AdminAnnouncementService {
   @Transactional
   public View archive(AccountPrincipal actor,long id) {
     accounts.requireAdminForWrite(actor);
-    String status=lock(id).text("status");
+    String status=lock(id).status();
     if ("PUBLISHED".equals(status)) {
       store.archive(id);
       audit.record(actor.id(),"ANNOUNCEMENT_ARCHIVED","ANNOUNCEMENT",id);
@@ -104,12 +104,12 @@ public class AdminAnnouncementService {
     return store.get(id,Instant.now());
   }
 
-  private Row lock(long id) {
+  private LockedAnnouncement lock(long id) {
     return store.lock(id).orElseThrow(() -> new ApiException(404,"ANNOUNCEMENT_NOT_FOUND","Không tìm thấy thông báo."));
   }
 
-  private static void requireDraft(Row row,Long version) {
-    if (!"DRAFT".equals(row.text("status")) || version==null || version!=row.number("version"))
+  private static void requireDraft(LockedAnnouncement row,Long version) {
+    if (!"DRAFT".equals(row.status()) || version==null || version!=row.version())
       throw new ApiException(409,"ANNOUNCEMENT_CHANGED","Bản nháp đã thay đổi. Hãy tải lại trước khi tiếp tục.");
   }
 

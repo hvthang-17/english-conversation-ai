@@ -4,7 +4,7 @@ import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.user.dto.UserResponse;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class AdminService {
   private final AdminStore store;
   private final AdminAudit audit;

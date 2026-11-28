@@ -6,14 +6,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.admin.dto.AdminPage;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminAnnouncementStore {
   private static final String RECIPIENTS = """
       FROM users u LEFT JOIN learner_profiles p ON p.user_id=u.id
@@ -33,11 +33,11 @@ public class AdminAnnouncementStore {
         .stream().map(row -> view(row,now)).toList(),page,size,db.count("SELECT COUNT(*) FROM announcements"));
   }
 
-  public Optional<Row> previous(long actor,String key) {
+  private Optional<Row> previousRows(long actor,String key) {
     return db.find("SELECT id,request_fingerprint FROM announcements WHERE created_by=? AND client_request_id=?",actor,key);
   }
 
-  public Optional<Row> lock(long id) {
+  private Optional<Row> lockRows(long id) {
     return db.find("SELECT * FROM announcements WHERE id=? FOR UPDATE",id);
   }
 
@@ -75,7 +75,7 @@ public class AdminAnnouncementStore {
     db.update("UPDATE announcements SET status='ARCHIVED',version=version+1 WHERE id=?",id);
   }
 
-  public static Draft draft(Row row) {
+  private static Draft draft(Row row) {
     String role=row.text("audience_role"), level=row.text("audience_level");
     return new Draft(row.text("title"),row.text("body"),role==null ? null : Audience.valueOf(role),
         level==null ? null : Level.valueOf(level),instant(row,"expires_at"));
@@ -94,4 +94,11 @@ public class AdminAnnouncementStore {
     LocalDateTime value=(LocalDateTime)row.data().get(field);
     return value==null ? null : value.toInstant(ZoneOffset.UTC);
   }
+
+  public record Previous(long id,String requestFingerprint) {}
+  private static Previous mapPrevious(Row row) { return new Previous(row.number("id"),row.text("request_fingerprint")); }
+  public record LockedAnnouncement(String status,long version,Draft draft) {}
+  private static LockedAnnouncement mapLockedAnnouncement(Row row) { return new LockedAnnouncement(row.text("status"),row.number("version"),draft(row)); }
+  public java.util.Optional<Previous> previous(long actor,String key) { return previousRows(actor,key).map(AdminAnnouncementStore::mapPrevious); }
+  public java.util.Optional<LockedAnnouncement> lock(long id) { return lockRows(id).map(AdminAnnouncementStore::mapLockedAnnouncement); }
 }

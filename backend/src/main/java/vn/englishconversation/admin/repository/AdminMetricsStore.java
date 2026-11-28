@@ -5,13 +5,13 @@ import static vn.englishconversation.admin.dto.AdminMetrics.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.ADMIN)
 public class AdminMetricsStore {
   private final JdbcStore db;
 

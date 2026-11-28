@@ -19,6 +19,6 @@ class AdminActivityServiceTest {
     assertThrows(ApiException.class, () -> service.list(true, 0, 12, "", "FAILED"));
     verifyNoInteractions(store);
     service.list(false, 2, 24, "  Gemini  ", "FAILED");
-    verify(store).list(false, 2, 24, "Gemini", "FAILED");
+    verify(store).list(false, 2, 24, "Gemini", "FAILED", null);
   }
 }
