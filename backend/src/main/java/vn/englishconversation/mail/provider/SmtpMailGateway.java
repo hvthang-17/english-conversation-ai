@@ -1,13 +1,13 @@
 package vn.englishconversation.mail.provider;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class SmtpMailGateway implements MailGateway {
   private final JavaMailSenderImpl sender = new JavaMailSenderImpl();
   private final boolean enabled;
