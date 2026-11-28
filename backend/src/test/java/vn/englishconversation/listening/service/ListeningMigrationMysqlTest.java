@@ -13,7 +13,7 @@ class ListeningMigrationMysqlTest {
   @Test
   void upgradesG3AndOnlyCreatesDrafts() {
     String url = System.getenv("G4_UPGRADE_DB_URL");
-    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|13306)/g4_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|3307|13306)/g4_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use a dedicated G4 upgrade schema");
     var source = new DriverManagerDataSource(url, System.getenv("SPRING_DATASOURCE_USERNAME"),
         System.getenv("SPRING_DATASOURCE_PASSWORD"));

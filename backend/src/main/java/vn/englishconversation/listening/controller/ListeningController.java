@@ -4,7 +4,7 @@ import static vn.englishconversation.listening.dto.ListeningData.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -18,7 +18,7 @@ import vn.englishconversation.listening.service.ListeningPublication;
 
 @RestController
 @RequestMapping("/api/v1")
-@Profile({"g4", "g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.LISTENING)
 public class ListeningController {
   private final ListeningAttempts attempts;
   private final ListeningPublication publication;

@@ -7,12 +7,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 import vn.englishconversation.common.exception.ApiException;
 
 @Component
-@Profile({"g4", "g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.LISTENING)
 public class AzureListeningSpeech {
   private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
       .followRedirects(HttpClient.Redirect.NEVER).build();

@@ -5,7 +5,7 @@ import static vn.englishconversation.listening.dto.ListeningData.*;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +15,12 @@ import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.listening.repository.ListeningRepository.*;
 import vn.englishconversation.listening.repository.ListeningRepository;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile({"g4", "g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.LISTENING)
 public class ListeningAttempts {
   private static final TypeReference<List<Question>> QUESTIONS = new TypeReference<>() {};
   private static final TypeReference<List<Graded>> GRADES = new TypeReference<>() {};
@@ -55,12 +55,12 @@ public class ListeningAttempts {
     lockOwner(owner);
     var replay = store.byKey(owner.id(), input.clientRequestId());
     if (replay.isPresent()) {
-      if (replay.get().number("exercise_id") != exerciseId)
+      if (replay.get().exerciseId() != exerciseId)
         throw new ApiException(409, "LISTENING_REQUEST_REUSED", "Mã yêu cầu đã được dùng cho đề khác.");
-      return get(owner, replay.get().number("id"));
+      return get(owner, replay.get().id());
     }
     var existing = store.inProgress(owner.id(), exerciseId);
-    if (existing.isPresent()) return get(owner, existing.get().number("id"));
+    if (existing.isPresent()) return get(owner, existing.get().id());
     if (!store.visible(exerciseId)) throw unavailable();
     int maximum = questions(exercise(exerciseId)).size();
     return get(owner, store.begin(owner.id(), exerciseId, input.clientRequestId(), maximum));
@@ -69,21 +69,21 @@ public class ListeningAttempts {
   @Transactional(readOnly = true)
   public Attempt get(AccountPrincipal owner, long id) {
     var row = owned(owner, id);
-    var exercise = exercise(row.number("exercise_id"));
+    var exercise = exercise(row.exerciseId());
     var questions = questions(exercise).stream().map(Question::publicView).toList();
-    boolean submitted = row.text("status").equals("SUBMITTED");
-    var grades = submitted ? json.readValue(row.text("answers_json"), GRADES) : List.<Graded>of();
-    Result result = submitted ? new Result((int) row.number("score"), (int) row.number("max_score"),
-        exercise.text("transcript_en"), exercise.text("translation_vi"), grades) : null;
-    return new Attempt(row.text("id"), exerciseSummary(exercise), row.text("status"), (int) row.number("draft_version"),
-        questions, submitted ? values(grades) : json.readValue(row.text("answers_json"), ANSWERS), result, row.text("started_utc"));
+    boolean submitted = row.status().equals("SUBMITTED");
+    var grades = submitted ? json.readValue(row.answersJson(), GRADES) : List.<Graded>of();
+    Result result = submitted ? new Result((int) row.score(), (int) row.maxScore(),
+        exercise.transcriptEn(), exercise.translationVi(), grades) : null;
+    return new Attempt(Long.toString(row.id()), exerciseSummary(exercise), row.status(), (int) row.draftVersion(),
+        questions, submitted ? values(grades) : json.readValue(row.answersJson(), ANSWERS), result, row.startedUtc());
   }
 
   @Transactional
   public Attempt save(AccountPrincipal owner, long id, Answers input) {
     var row = lockAttempt(owner, id);
     checkDraft(row, input);
-    var answers = validAnswers(questions(exercise(row.number("exercise_id"))), input);
+    var answers = validAnswers(questions(exercise(row.exerciseId())), input);
     store.draft(id, json.writeValueAsString(answers));
     return get(owner, id);
   }
@@ -91,8 +91,8 @@ public class ListeningAttempts {
   @Transactional
   public Attempt submit(AccountPrincipal owner, long id, Answers input) {
     var row = lockAttempt(owner, id);
-    var questions = questions(exercise(row.number("exercise_id")));
-    boolean submitted = row.text("status").equals("SUBMITTED");
+    var questions = questions(exercise(row.exerciseId()));
+    boolean submitted = row.status().equals("SUBMITTED");
     if (!submitted) checkDraft(row, input);
     Map<String, JsonNode> answers;
     try {
@@ -102,7 +102,7 @@ public class ListeningAttempts {
       throw error;
     }
     if (submitted) {
-      if (!answers.equals(values(json.readValue(row.text("answers_json"), GRADES))))
+      if (!answers.equals(values(json.readValue(row.answersJson(), GRADES))))
         throw submittedConflict();
       return get(owner, id);
     }
@@ -115,24 +115,24 @@ public class ListeningAttempts {
   @Transactional
   public void abandon(AccountPrincipal owner, long id) {
     var row = lockAttempt(owner, id);
-    if (row.text("status").equals("SUBMITTED")) throw submittedConflict();
-    if (row.text("status").equals("IN_PROGRESS")) store.abandon(id);
+    if (row.status().equals("SUBMITTED")) throw submittedConflict();
+    if (row.status().equals("IN_PROGRESS")) store.abandon(id);
   }
 
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public HistoryPage history(AccountPrincipal owner, int page, int size) {
     validatePage(page, size);
     var items = store.history(owner.id(), size, page).stream().map(row ->
-        new History(row.text("id"),
-            new Exercise(row.text("exercise_id"), row.text("title"), row.text("level"), row.text("instructions")),
-            row.text("status"), row.text("score") == null ? null : (int) row.number("score"),
-            (int) row.number("max_score"), row.text("started_utc"))).toList();
+        new History(Long.toString(row.id()),
+            new Exercise(Long.toString(row.exerciseId()), row.title(), row.level(), row.instructions()),
+            row.status(), row.score(),
+            (int) row.maxScore(), row.startedUtc())).toList();
     return new HistoryPage(items, page, size, store.historyCount(owner.id()));
   }
 
   @Transactional(readOnly = true)
   public long audioExercise(AccountPrincipal owner, long id) {
-    return owned(owner, id).number("exercise_id");
+    return owned(owner, id).exerciseId();
   }
 
   @Transactional
@@ -146,21 +146,21 @@ public class ListeningAttempts {
       throw new ApiException(401, "SESSION_REVOKED", "Vui lòng đăng nhập lại.");
   }
 
-  private Row lockAttempt(AccountPrincipal owner, long id) {
+  private AttemptState lockAttempt(AccountPrincipal owner, long id) {
     lockOwner(owner);
     return store.lockAttempt(owner.id(), id).orElseThrow(ListeningAttempts::missingAttempt);
   }
 
-  private Row owned(AccountPrincipal owner, long id) {
+  private AttemptState owned(AccountPrincipal owner, long id) {
     return store.attempt(owner.id(), id).orElseThrow(ListeningAttempts::missingAttempt);
   }
 
-  private Row exercise(long id) {
+  private ExerciseState exercise(long id) {
     return store.exercise(id).orElseThrow(ListeningAttempts::unavailable);
   }
 
-  private List<Question> questions(Row exercise) {
-    return json.readValue(exercise.text("questions_json"), QUESTIONS);
+  private List<Question> questions(ExerciseState exercise) {
+    return json.readValue(exercise.questionsJson(), QUESTIONS);
   }
 
   private static Map<String, JsonNode> values(List<Graded> grades) {
@@ -178,14 +178,17 @@ public class ListeningAttempts {
     }
   }
 
-  private static void checkDraft(Row row, Answers input) {
-    if (!row.text("status").equals("IN_PROGRESS"))
+  private static void checkDraft(AttemptState row, Answers input) {
+    if (!row.status().equals("IN_PROGRESS"))
       throw new ApiException(409, "LISTENING_ATTEMPT_CLOSED", "Lượt làm đã kết thúc.");
-    if (row.number("draft_version") != input.draftVersion())
+    if (row.draftVersion() != input.draftVersion())
       throw new ApiException(409, "LISTENING_DRAFT_CHANGED", "Bản nháp đã thay đổi. Hãy tải lại bản đã lưu.");
   }
-  private static Exercise exerciseSummary(Row row) {
-    return new Exercise(row.text("id"), row.text("title"), row.text("level"), row.text("instructions"));
+  private static Exercise exerciseSummary(ExerciseSummary row) {
+    return new Exercise(row.id(), row.title(), row.level(), row.instructions());
+  }
+  private static Exercise exerciseSummary(ExerciseState row) {
+    return new Exercise(Long.toString(row.id()), row.title(), row.level(), row.instructions());
   }
   private static void validatePage(int page, int size) {
     if (page < 0 || page > 100000 || size < 1 || size > 50)

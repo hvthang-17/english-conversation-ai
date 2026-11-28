@@ -45,7 +45,7 @@ class ListeningMysqlTest {
   @DynamicPropertySource
   static void isolated(DynamicPropertyRegistry registry) throws IOException {
     String url = System.getenv("G4_TEST_DB_URL");
-    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|13306)/g4_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|3307|13306)/g4_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use a dedicated G4 test schema");
     var folder = Files.createTempDirectory(Path.of("target"), "listening-test-").toAbsolutePath();
     registry.add("spring.datasource.url", () -> url);
@@ -98,6 +98,11 @@ class ListeningMysqlTest {
     assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM listening_attempts WHERE exercise_id=201", Integer.class));
     var path = ATTEMPTS + "/" + opened.get("id").asString();
     assertTrue(opened.get("result").isNull());
+    var historyDraft = ok(owner.get(ATTEMPTS)).get("items").get(0);
+    assertTrue(historyDraft.get("score").isNull());
+    assertEquals(3, historyDraft.get("maxScore").asInt());
+    assertEquals(opened.get("startedAt"), historyDraft.get("startedAt"));
+    assertDoesNotThrow(() -> java.time.Instant.parse(historyDraft.get("startedAt").asString()));
     var questions = opened.get("questions").toString();
     for (String field : new String[] {"accepted", "answerKey", "explanationVi", "transcriptEn", "textEn"})
       assertFalse(questions.contains(field), field);
@@ -144,6 +149,23 @@ class ListeningMysqlTest {
     assertEquals(204, owner.mutate("POST", retakePath + "/abandon", null).statusCode());
     assertEquals("ABANDONED", ok(owner.get(retakePath)).get("status").asString());
     verify(speech, times(4)).synthesize(anyString());
+
+    // A concurrent edit during TTS must fence completion and remove the generated file.
+    db.update("""
+        INSERT INTO listening_exercises(id,lesson_id,title,instructions,tts_voice_key,transcript_en,questions_json,created_at,updated_at)
+        SELECT 251,lesson_id,'Changed during TTS',instructions,tts_voice_key,transcript_en,questions_json,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+        FROM listening_exercises WHERE id=201
+        """);
+    when(speech.synthesize(anyString())).thenAnswer(invocation -> {
+      assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+      db.update("UPDATE listening_exercises SET updated_at=TIMESTAMPADD(MICROSECOND,1,updated_at) WHERE id=251");
+      return ListeningRulesTest.fixtureFrames();
+    });
+    assertEquals(409, admin.mutate("POST", PUBLISH + "251/publish", null).statusCode());
+    assertEquals("DRAFT", db.queryForObject("SELECT status FROM listening_exercises WHERE id=251", String.class));
+    when(speech.synthesize(anyString())).thenReturn(ListeningRulesTest.fixtureFrames());
+    assertEquals("ACTIVE", ok(admin.mutate("POST", PUBLISH + "251/publish", null)).get("status").asString());
+    verify(speech, times(6)).synthesize(anyString());
 
     assertEquals(204, owner.mutate("DELETE", "learning/data", null).statusCode());
     assertEquals(0, ok(owner.get(ATTEMPTS)).get("total").asInt());

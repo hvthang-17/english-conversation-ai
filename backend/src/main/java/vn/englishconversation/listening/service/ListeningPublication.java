@@ -15,7 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -25,14 +25,14 @@ import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.common.exception.ApiException;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.listening.repository.ListeningRepository.*;
 import vn.englishconversation.listening.dto.ListeningData.DraftExercise;
 import vn.englishconversation.listening.dto.ListeningData.Question;
 import vn.englishconversation.listening.dto.ListeningData.Segment;
 import vn.englishconversation.listening.repository.ListeningRepository;
 
 @Service
-@Profile({"g4", "g5", "g6"})
+@FeatureEnabled(FeatureEnabled.Feature.LISTENING)
 public class ListeningPublication {
   private static final TypeReference<List<Question>> QUESTIONS = new TypeReference<>() {};
   private static final TypeReference<List<Segment>> SEGMENTS = new TypeReference<>() {};
@@ -68,10 +68,10 @@ public class ListeningPublication {
         var version = store.exercise(id).orElseThrow(ListeningPublication::missing);
         String ssml = publicationScript(version);
         var output = file(id, ssml);
-        if ("ACTIVE".equals(version.text("status")) && validFile(output)) return summary(version);
-        if (!"DRAFT".equals(version.text("status")))
+        if ("ACTIVE".equals(version.status()) && validFile(output)) return summary(version);
+        if (!"DRAFT".equals(version.status()))
           throw new ApiException(409, "LISTENING_VERSION_CLOSED", "Hãy khôi phục tệp cũ hoặc chuẩn bị phiên bản đề mới.");
-        requirePublicLesson(version.number("lesson_id"), false);
+        requirePublicLesson(version.lessonId(), false);
         boolean generated = !validFile(output);
         if (generated) {
           byte[] audio = speech.synthesize(ssml);
@@ -87,15 +87,15 @@ public class ListeningPublication {
         try {
           return transactions.execute(status -> {
             accounts.requireAdminForWrite(actor);
-            store.lockLesson(version.number("lesson_id"));
-            requirePublicLesson(version.number("lesson_id"), true);
+            store.lockLesson(version.lessonId());
+            requirePublicLesson(version.lessonId(), true);
             var current = store.lockExercise(id).orElseThrow(ListeningPublication::missing);
-            if (!"DRAFT".equals(current.text("status")) || current.number("lesson_id") != version.number("lesson_id")
-                || !java.util.Objects.equals(current.data().get("updated_at"), version.data().get("updated_at"))
+            if (!"DRAFT".equals(current.status()) || current.lessonId() != version.lessonId()
+                || !java.util.Objects.equals(current.updatedAt(), version.updatedAt())
                 || !ssml.equals(publicationScript(current))
-                || !version.text("questions_json").equals(current.text("questions_json")))
+                || !version.questionsJson().equals(current.questionsJson()))
               throw new ApiException(409, "LISTENING_VERSION_CHANGED", "Phiên bản đề đã thay đổi trong lúc tạo audio.");
-            store.activate(current.number("lesson_id"), id);
+            store.activate(current.lessonId(), id);
             return summary(store.exercise(id).orElseThrow(ListeningPublication::missing));
           });
         } catch (RuntimeException failure) {
@@ -128,23 +128,23 @@ public class ListeningPublication {
     return new FileSystemResource(file);
   }
 
-  private String publicationScript(Row version) {
+  private String publicationScript(ExerciseState version) {
     try {
-      String segmentsJson = version.text("script_segments_json");
+      String segmentsJson = version.scriptSegmentsJson();
       List<Segment> segments = segmentsJson == null ? null : json.readValue(segmentsJson, SEGMENTS);
-      String transcript = version.text("transcript_en");
-      String voice = version.text("tts_voice_key");
-      ListeningRules.validate(version.text("title"), version.text("instructions"), voice, transcript, segments,
-          json.readValue(version.text("questions_json"), QUESTIONS));
+      String transcript = version.transcriptEn();
+      String voice = version.ttsVoiceKey();
+      ListeningRules.validate(version.title(), version.instructions(), voice, transcript, segments,
+          json.readValue(version.questionsJson(), QUESTIONS));
       return ListeningRules.ssml(voice, transcript, segments);
     } catch (RuntimeException invalid) {
       throw new ApiException(422, "LISTENING_INVALID_EXERCISE", "Kịch bản, mã giọng hoặc bộ đáp án không hợp lệ.");
     }
   }
 
-  private String synthesisScript(Row version) {
-    String segmentsJson = version.text("script_segments_json");
-    return ListeningRules.ssml(version.text("tts_voice_key"), version.text("transcript_en"),
+  private String synthesisScript(ExerciseState version) {
+    String segmentsJson = version.scriptSegmentsJson();
+    return ListeningRules.ssml(version.ttsVoiceKey(), version.transcriptEn(),
         segmentsJson == null ? null : json.readValue(segmentsJson, SEGMENTS));
   }
 
@@ -180,8 +180,8 @@ public class ListeningPublication {
         && (bytes[offset + 3] & 0xc0) == 0xc0;
   }
 
-  private static DraftExercise summary(Row row) {
-    return new DraftExercise(row.text("id"), row.text("lesson_id"), row.text("title"), row.text("level"), row.text("status"));
+  private static DraftExercise summary(ExerciseState row) {
+    return new DraftExercise(Long.toString(row.id()), Long.toString(row.lessonId()), row.title(), row.level(), row.status());
   }
   private static ApiException missing() {
     return new ApiException(404, "LISTENING_EXERCISE_NOT_FOUND", "Không tìm thấy phiên bản đề.");
