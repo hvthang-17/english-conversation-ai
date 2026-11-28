@@ -35,7 +35,7 @@ class LessonMaterialsMysqlTest {
   @DynamicPropertySource
   static void isolatedDatabase(DynamicPropertyRegistry properties) {
     String url = System.getenv("G3_TEST_DB_URL");
-    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:3306/g3_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|3307)/g3_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use a dedicated G3 test schema");
     properties.add("spring.datasource.url", () -> url);
     properties.add("app.mail.enabled", () -> false);
@@ -96,8 +96,8 @@ class LessonMaterialsMysqlTest {
     String key = card.get("id").asString();
     String cardPath = NOTEBOOK + "/" + key;
     String attempts = cardPath + "/attempts";
-    assertEquals(404, other.get(attempts).statusCode());
-    assertEquals(404, other.change("POST", cardPath + "/quiz", null).statusCode());
+    assertEquals(404, other.get(cardPath).statusCode());
+    assertEquals(403, other.change("POST", cardPath + "/quiz", null).statusCode());
     assertEquals(404, other.change("DELETE", cardPath, null).statusCode());
     var flash = Map.of("mode", "FLASHCARD", "result", "REMEMBERED", "clientRequestId", "same-request");
     var marked = ok(owner.change("POST", attempts, flash));
@@ -105,37 +105,11 @@ class LessonMaterialsMysqlTest {
     assertEquals(409, owner.change("POST", attempts,
         Map.of("mode", "FLASHCARD", "result", "NEEDS_REVIEW", "clientRequestId", "same-request")).statusCode());
 
-    for (boolean expected : new boolean[] {true, false}) {
-      var question = ok(owner.change("POST", cardPath + "/quiz", null));
-      assertFalse(question.has("correctOptionId"));
-      assertEquals(3, question.get("options").size());
-      JsonNode choice = null;
-      for (var option : question.get("options")) {
-        if (expected == option.get("meaningVi").equals(card.get("meaningVi"))) {
-          choice = option;
-          break;
-        }
-      }
-      assertNotNull(choice);
-      var input = Map.of("mode", "QUICK_QUIZ", "clientRequestId", question.get("id").asString(),
-          "optionId", choice.get("id").asString());
-      var result = ok(owner.change("POST", attempts, input));
-      assertEquals(expected, result.get("correct").asBoolean());
-      assertEquals(result, ok(owner.change("POST", attempts, input)));
-    }
-    assertEquals(3, ok(owner.get(attempts)).get("total").asInt());
+    assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM review_attempts WHERE review_item_id=?", Integer.class, key));
     assertEquals(1, ok(owner.get(NOTEBOOK + "?status=REMEMBERED")).get("total").asInt());
-    assertEquals(409, owner.change("POST", attempts,
-        Map.of("mode", "QUICK_QUIZ", "clientRequestId", "unknown", "optionId", "unknown")).statusCode());
-    jdbc.update("UPDATE language_items SET status='ARCHIVED' WHERE kind='WORD'");
-    try {
-      var unavailable = owner.change("POST", cardPath + "/quiz", null);
-      assertEquals(409, unavailable.statusCode());
-      assertTrue(unavailable.body().contains("QUIZ_UNAVAILABLE"));
-      assertEquals(1, ok(owner.get(NOTEBOOK)).get("total").asInt());
-    } finally {
-      jdbc.update("UPDATE language_items SET status='ACTIVE' WHERE kind='WORD'");
-    }
+    assertEquals(403, owner.change("POST", cardPath + "/quiz", null).statusCode());
+    assertEquals(400, owner.change("POST", attempts,
+        Map.of("mode", "QUICK_QUIZ", "clientRequestId", "retired", "optionId", "unknown")).statusCode());
     jdbc.update("""
         INSERT INTO language_items(lesson_id,kind,expression,ipa,meaning_vi,example_en,sort_order,status,created_at,updated_at)
         VALUES (101,'WORD','notebook test','/tɛst/','bản thử','This is a test.',9,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))

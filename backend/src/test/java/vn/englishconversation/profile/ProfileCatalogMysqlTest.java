@@ -18,6 +18,7 @@ import tools.jackson.databind.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnabledIfEnvironmentVariable(named = "PHASE1_MYSQL_TEST", matches = "true")
+@ActiveProfiles("g6")
 class ProfileCatalogMysqlTest {
   @Value("${local.server.port}")
   int port;
@@ -29,10 +30,10 @@ class ProfileCatalogMysqlTest {
 
   @DynamicPropertySource
   static void isolated(DynamicPropertyRegistry properties) {
-    String url = System.getenv("SPRING_DATASOURCE_URL");
+    String url = System.getenv("PROFILE_CATALOG_DB_URL");
     if (url == null
         || !url.matches(
-            "jdbc:mysql://127\\.0\\.0\\.1:3307/phase[12]_auth_[0-9]{14}\\?connectionTimeZone=UTC"))
+            "jdbc:mysql://127\\.0\\.0\\.1:3307/phase[12]_auth_[0-9]{14}_catalog\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use isolated MySQL test script");
     properties.add("spring.datasource.url", () -> url);
   }
@@ -47,22 +48,8 @@ class ProfileCatalogMysqlTest {
 
     HttpResponse<String> call(String method, String path, Object body, boolean csrf)
         throws Exception {
-      var builder =
-          HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1/" + path))
-              .header("Content-Type", "application/json");
-      if (csrf) {
-        var token = json.readTree(call("GET", "auth/csrf", null, false).body());
-        builder.header(token.get("headerName").asString(), token.get("token").asString());
-      }
-      return client.send(
-          builder
-              .method(
-                  method,
-                  body == null
-                      ? HttpRequest.BodyPublishers.noBody()
-                      : HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
-              .build(),
-          HttpResponse.BodyHandlers.ofString());
+      return vn.englishconversation.testing.HttpTestRequests.request(client, json,
+          "http://127.0.0.1:" + port + "/api/v1/", path, method, body, csrf);
     }
 
     String register() throws Exception {
@@ -118,7 +105,7 @@ class ProfileCatalogMysqlTest {
   void validatesProfileAndRejectsUnknownDuplicateOrHiddenTopics() throws Exception {
     Browser b = new Browser();
     b.register();
-    String topic = jdbc.queryForObject("select id from topics where code='FOOD'", String.class);
+    String topic = jdbc.queryForObject("select id from topics where code='SHOPPING'", String.class);
     assertEquals(
         400, b.call("PUT", "profile/me", update("Name", "C1", List.of()), true).statusCode());
     assertEquals(400, b.call("PUT", "profile/me", update(" ", "A2", List.of()), true).statusCode());
@@ -148,15 +135,15 @@ class ProfileCatalogMysqlTest {
   }
 
   @Test
-  void catalogHasEightReviewedScenariosAndDoesNotExposeInstructions() throws Exception {
+  void catalogHasFourScenariosPerLevelAndDoesNotExposeInstructions() throws Exception {
     Browser b = new Browser();
     b.register();
     for (String level : List.of("A2", "B1")) {
       var response = b.get("scenarios?level=" + level + "&size=50");
       assertEquals(200, response.statusCode());
       var page = json.readTree(response.body());
-      assertEquals(8, page.get("totalElements").asInt());
-      assertEquals(8, page.get("content").size());
+      assertEquals(4, page.get("totalElements").asInt());
+      assertEquals(4, page.get("content").size());
       assertFalse(response.body().contains("ai_instruction"));
       assertFalse(response.body().contains("aiInstruction"));
       for (var item : page.get("content")) {
@@ -175,17 +162,20 @@ class ProfileCatalogMysqlTest {
         assertFalse(detail.body().contains(internal));
         assertFalse(data.has("aiInstruction"));
         var roles = data.get("roles");
-        assertEquals(2, roles.size());
+        assertEquals(1 + jdbc.queryForObject("SELECT COUNT(*) FROM scenario_role_variants WHERE scenario_id=?",
+            Integer.class, item.get("id").asString()), roles.size());
         assertEquals("DEFAULT", roles.get(0).get("code").asString());
-        assertEquals("REVERSE", roles.get(1).get("code").asString());
-        assertEquals(data.get("aiRole"), roles.get(1).get("learnerRole"));
-        assertFalse(roles.get(1).has("aiInstruction"));
+        for (var role : roles) {
+          assertFalse(role.has("aiInstruction"));
+          assertFalse(role.get("learnerRole").asString().isBlank());
+          assertFalse(role.get("aiRole").asString().isBlank());
+        }
       }
     }
     assertEquals(6, json.readTree(b.get("topics").body()).size());
     String topic = jdbc.queryForObject("select id from topics where code='TRAVEL'", String.class);
     assertEquals(
-        2,
+        1,
         json.readTree(b.get("scenarios?topicId=" + topic + "&level=A2").body())
             .get("totalElements")
             .asInt());
@@ -205,15 +195,18 @@ class ProfileCatalogMysqlTest {
     b.register();
     String id =
         jdbc.queryForObject(
-            "select id from scenarios where code='SELF_INTRODUCTION'", String.class);
+            "select id from scenarios where code='CLUB_INTRO'", String.class);
     String topic =
         jdbc.queryForObject("select topic_id from scenarios where id=?", String.class, id);
+    int visibleBefore = json.readTree(b.get("scenarios?size=50").body()).get("totalElements").asInt();
+    int topicScenarios = json.readTree(b.get("scenarios?topicId=" + topic + "&size=50").body()).get("totalElements").asInt();
+    int topicsBefore = json.readTree(b.get("topics").body()).size();
     for (String status : List.of("DRAFT", "ARCHIVED")) {
       jdbc.update("update scenarios set status=? where id=?", status, id);
       try {
         assertEquals(404, b.get("scenarios/" + id).statusCode());
         assertEquals(
-            7, json.readTree(b.get("scenarios?size=50").body()).get("totalElements").asInt());
+            visibleBefore - 1, json.readTree(b.get("scenarios?size=50").body()).get("totalElements").asInt());
       } finally {
         jdbc.update("update scenarios set status='ACTIVE' where id=?", id);
       }
@@ -221,18 +214,14 @@ class ProfileCatalogMysqlTest {
     jdbc.update("update topics set is_active=FALSE where id=?", topic);
     try {
       assertEquals(404, b.get("scenarios/" + id).statusCode());
-      assertEquals(6, json.readTree(b.get("scenarios").body()).get("totalElements").asInt());
-      assertEquals(5, json.readTree(b.get("topics").body()).size());
+      assertEquals(visibleBefore - topicScenarios, json.readTree(b.get("scenarios").body()).get("totalElements").asInt());
+      assertEquals(topicsBefore - 1, json.readTree(b.get("topics").body()).size());
     } finally {
       jdbc.update("update topics set is_active=TRUE where id=?", topic);
     }
-    jdbc.update("delete from scenario_levels where scenario_id=? and level='B1'", id);
-    try {
-      assertEquals(404, b.get("scenarios/" + id + "?level=B1").statusCode());
-      assertEquals(200, b.get("scenarios/" + id + "?level=A2").statusCode());
-    } finally {
-      jdbc.update("insert into scenario_levels(scenario_id,level) values (?,'B1')", id);
-    }
+    // CLUB_INTRO is A2-only. Do not remove the level referenced by seeded lessons.
+    assertEquals(404, b.get("scenarios/" + id + "?level=B1").statusCode());
+    assertEquals(200, b.get("scenarios/" + id + "?level=A2").statusCode());
   }
 
   @Test
@@ -281,7 +270,7 @@ class ProfileCatalogMysqlTest {
 
   @Test
   @EnabledIfEnvironmentVariable(named = "PHASE2_UPGRADE_URL", matches = "jdbc:.*")
-  void upgradingV2PreservesAccountsAndBackfillsProfilesWithoutReseedingEdits() {
+  void upgradingV16PreservesAccountsProfilesAndTranscriptWithoutReseedingEdits() {
     String url = System.getenv("PHASE2_UPGRADE_URL");
     assertNotNull(url);
     assertTrue(
@@ -293,21 +282,25 @@ class ProfileCatalogMysqlTest {
             System.getenv("SPRING_DATASOURCE_USERNAME"),
             System.getenv("SPRING_DATASOURCE_PASSWORD"));
     var check = new JdbcTemplate(ds);
-    org.flywaydb.core.Flyway.configure().dataSource(ds).target("2").load().migrate();
+    org.flywaydb.core.Flyway.configure().dataSource(ds).target("16").load().migrate();
     String hash = encoder.encode("Synthetic upgrade password");
     check.update(
         "insert into users(email,password_hash,role,status,security_version,created_at,updated_at)"
             + " values (?,?,'LEARNER','ACTIVE',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
         "upgrade@example.test",
         hash);
-    org.flywaydb.core.Flyway.configure().dataSource(ds).target("7").load().migrate();
+    check.update("""
+        INSERT INTO learner_profiles(user_id,display_name,selected_level,created_at,updated_at)
+        SELECT id,'Upgrade learner','A2',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) FROM users WHERE email='upgrade@example.test'
+        """);
+    check.update("UPDATE scenarios SET title='Edited catalog title' WHERE code='CLUB_INTRO'");
     check.update("""
         INSERT INTO practice_sessions(id,user_id,scenario_id,client_request_id,request_fingerprint,
           selected_level,scenario_snapshot,status,started_at,last_activity_at)
         SELECT 1,u.id,s.id,'upgrade-practice',REPEAT('a',64),'A2',JSON_OBJECT(),'ACTIVE',
           UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
         FROM users u CROSS JOIN scenarios s WHERE u.email='upgrade@example.test'
-          AND s.code='SELF_INTRODUCTION'
+          AND s.code='CLUB_INTRO'
         """);
     check.update("""
         INSERT INTO ai_requests(id,user_id,session_id,task_type,operation_key,request_fingerprint,
@@ -324,7 +317,7 @@ class ProfileCatalogMysqlTest {
         INSERT INTO messages(id,session_id,turn_id,sender,content,input_type,created_at)
         VALUES (1,1,1,'LEARNER','An existing message.','TEXT',UTC_TIMESTAMP(6))
         """);
-    var flyway = org.flywaydb.core.Flyway.configure().dataSource(ds).load();
+    var flyway = org.flywaydb.core.Flyway.configure().dataSource(ds).target("33").load();
     flyway.migrate();
     assertNull(check.queryForObject("SELECT deletion_requested_at FROM users WHERE email='upgrade@example.test'",java.sql.Timestamp.class));
 
@@ -342,13 +335,14 @@ class ProfileCatalogMysqlTest {
             "select password_hash from users where email='upgrade@example.test'", String.class));
     assertEquals(1, check.queryForObject("select count(*) from learner_profiles", Integer.class));
     assertEquals(8, check.queryForObject("select count(*) from scenarios", Integer.class));
-    check.update(
-        "update scenarios set title='Edited catalog title' where code='SELF_INTRODUCTION'");
-    flyway.migrate();
+    assertEquals("Edited catalog title", check.queryForObject("SELECT title FROM scenarios WHERE code='CLUB_INTRO'", String.class));
+    assertEquals(0, flyway.migrate().migrationsExecuted);
+    flyway.validate();
+    assertEquals("33", flyway.info().current().getVersion().toString());
     assertEquals(
         "Edited catalog title",
         check.queryForObject(
-            "select title from scenarios where code='SELF_INTRODUCTION'", String.class));
+            "select title from scenarios where code='CLUB_INTRO'", String.class));
     assertEquals(8, check.queryForObject("select count(*) from scenarios", Integer.class));
   }
 }

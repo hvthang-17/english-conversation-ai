@@ -61,10 +61,11 @@ Mutation yêu cầu CSRF; chỉ thao tác dữ liệu của principal. Đã có 
 | --- | --- |
 | PUT /profile/me/avatar | Session ACTIVE, multipart trường `file`; 200 `{avatarUrl}` đường dẫn cùng origin; 413 quá cỡ, 415 định dạng, 400 ảnh không hợp lệ |
 | GET /profile/me/avatar | Session ACTIVE, trả ảnh owner đã xử lý, 404 nếu chưa có; private/no-store, nosniff |
+| GET /profile/me/avatar/{key} | URL ảnh theo phiên bản. Session ACTIVE của chủ ảnh, 404 khi khóa khác ảnh hiện tại hoặc tệp đã mất. |
 | DELETE /profile/me/avatar | Session ACTIVE; 204, xóa lần nữa vẫn 204 |
 | GET /profile/me/practice-schedule | Session ACTIVE; 200 lịch hoặc `null` nếu chưa thiết lập |
 | PUT /profile/me/practice-schedule | Session ACTIVE; `{days:[1,3,5],localTime:"20:00",timeZone:"Asia/Ho_Chi_Minh",enabled:true,emailReminderEnabled:true}` → 200 lịch đã lưu; days ISO 1=T2…7=CN, không trùng; giờ HH:mm, múi giờ hợp lệ; 400 validation |
 
 Lịch trả thêm `nextOccurrenceAt` UTC hoặc null khi tắt; `emailReminderAvailable` phản ánh server mail được cấu hình và tài khoản xác minh. Không báo lời nhắc hoạt động khi không thể gửi. Cho lưu ý muốn nhận mail trước xác minh nhưng UI thông báo cần xác minh, worker không gửi. Không nhận email đích tùy ý.
 
-Profile response bổ sung thêm avatarUrl nullable; không yêu cầu trong PUT hồ sơ cũ. Giới hạn ảnh và điều kiện nhắc học theo tài liệu yêu cầu.
+Profile response có `avatarUrl` nullable. Cùng URL được trả sau khi tải ảnh lên và khi mở lại hồ sơ. MySQL V33 lưu URL trong `learner_profiles.avatar_url`. Tệp PNG nằm trong thư mục ảnh của backend. Giới hạn ảnh và điều kiện nhắc học theo tài liệu yêu cầu.

@@ -1,13 +1,13 @@
 package vn.englishconversation.scenario.repository;
 
 import java.util.*;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.scenario.dto.*;
 
 @Repository
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class CatalogRepository {
   private final NamedParameterJdbcTemplate jdbc;
 

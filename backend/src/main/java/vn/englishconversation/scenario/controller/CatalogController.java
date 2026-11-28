@@ -1,14 +1,14 @@
 package vn.englishconversation.scenario.controller;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.web.bind.annotation.*;
 import vn.englishconversation.scenario.dto.*;
 import vn.englishconversation.scenario.service.CatalogService;
 
 @RestController
 @RequestMapping("/api/v1")
-@Profile("!bootstrap & !g1")
+@FeatureEnabled(FeatureEnabled.Feature.CATALOG)
 public class CatalogController {
   private final CatalogService catalog;
 

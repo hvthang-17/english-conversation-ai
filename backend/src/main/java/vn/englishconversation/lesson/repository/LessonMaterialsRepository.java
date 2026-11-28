@@ -2,14 +2,14 @@ package vn.englishconversation.lesson.repository;
 
 import java.util.List;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 import vn.englishconversation.lesson.dto.LessonMaterials.Item;
 
 @Repository
-@Profile("!bootstrap & !g1 & !g2")
+@FeatureEnabled(FeatureEnabled.Feature.MATERIALS)
 public class LessonMaterialsRepository {
   private static final String ACTIVE_LESSON = """
       FROM lessons l JOIN topics t ON t.id=l.topic_id
@@ -38,14 +38,14 @@ public class LessonMaterialsRepository {
         .toList();
   }
 
-  public List<Row> dialogues(long lessonId) {
+  private List<Row> dialoguesRows(long lessonId) {
     return db.rows("""
         SELECT id,title,lines_json FROM sample_dialogues WHERE lesson_id=? AND status='ACTIVE'
         ORDER BY sort_order,id
         """, lessonId);
   }
 
-  public Optional<Row> lockVisibleItem(long itemId) {
+  private Optional<Row> lockVisibleItemRows(long itemId) {
     return db.find("""
         SELECT i.* FROM language_items i
         JOIN lessons l ON l.id=i.lesson_id JOIN topics t ON t.id=l.topic_id
@@ -53,4 +53,12 @@ public class LessonMaterialsRepository {
         """ + VISIBLE + " FOR SHARE", itemId);
   }
 
+
+  public record DialogueSource(String id,String title,String linesJson) {}
+  private static DialogueSource mapDialogueSource(Row row) { return new DialogueSource(row.text("id"),row.text("title"),row.text("lines_json")); }
+  public java.util.List<DialogueSource> dialogues(long lessonId) { return dialoguesRows(lessonId).stream().map(LessonMaterialsRepository::mapDialogueSource).toList(); }
+
+  public record MaterialSource(String kind,String expression,String meaningVi,String exampleEn,String ipa,String partOfSpeech) {}
+  private static MaterialSource mapMaterialSource(Row row) { return new MaterialSource(row.text("kind"),row.text("expression"),row.text("meaning_vi"),row.text("example_en"),row.text("ipa"),row.text("part_of_speech")); }
+  public java.util.Optional<MaterialSource> lockVisibleItem(long itemId) { return lockVisibleItemRows(itemId).map(LessonMaterialsRepository::mapMaterialSource); }
 }

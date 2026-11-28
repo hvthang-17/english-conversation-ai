@@ -38,3 +38,6 @@ Trong profile `g6`, `GET /api/v1/learning/notebook/spaced?limit=20` trả thẻ 
 Nộp vào `POST /learning/notebook/{id}/attempts`. Rating nhận `AGAIN`, `HARD`, `GOOD` hoặc `EASY`. Kết quả có `rating`, `intervalDays`, `algorithmVersion`, `scheduleVersion` và `nextReviewAt`. Các mốc hẹn dùng UTC. Gửi lại nguyên yêu cầu trả đúng lượt đã ghi. Lịch đã đổi, thẻ chưa đến hạn và hết suất báo HTTP 409 với mã lần lượt là `REVIEW_SCHEDULE_CHANGED`, `REVIEW_NOT_DUE` và `NEW_REVIEW_LIMIT_REACHED`. Thẻ đã xóa hoặc của owner khác trả 404. Flashcard tự đánh dấu độc lập với lịch ngắt quãng. Các endpoint ghi lượt và hàng đợi phục vụ tab Ôn tập.
 
 GET /api/v1/learning/notebook/{id} trả chi tiết thẻ của chủ phiên. Màn Hôm nay dùng endpoint này để mở đúng thẻ. Thẻ bị xóa hoặc thuộc tài khoản khác trả 404.
+
+
+BR-11: route tạo quiz và GET lịch sử attempt từng thẻ đã bỏ không còn matcher cho phép; trả 403 qua denyAll khi đã xác thực. Mode QUICK_QUIZ gửi vào POST attempt hiện hành vẫn trả 400 INVALID_REVIEW_ANSWER. Route của feature chưa bật bị chặn trước matcher rộng; FLASHCARD và SPACED_REVIEW trong stage được hỗ trợ giữ nguyên payload.

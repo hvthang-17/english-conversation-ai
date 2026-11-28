@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -13,7 +13,7 @@ import vn.englishconversation.lesson.dto.LessonResponse.BookmarkKind;
 import vn.englishconversation.lesson.dto.LessonResponse.Page;
 
 @Repository
-@Profile("!bootstrap & !g1")
+@FeatureEnabled(FeatureEnabled.Feature.CATALOG)
 public class LessonCatalogRepository {
   private static final String VISIBLE = "l.status='ACTIVE' AND t.is_active=TRUE";
   private static final String BASE = """

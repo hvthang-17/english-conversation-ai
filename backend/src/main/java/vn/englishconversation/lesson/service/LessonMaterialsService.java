@@ -1,21 +1,21 @@
 package vn.englishconversation.lesson.service;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.lesson.repository.LessonMaterialsRepository.DialogueSource;
 import vn.englishconversation.lesson.dto.LessonMaterials;
 import vn.englishconversation.lesson.dto.LessonMaterials.Dialogue;
 import vn.englishconversation.lesson.dto.LessonMaterials.Line;
 import vn.englishconversation.lesson.repository.LessonMaterialsRepository;
 
 @Service
-@Profile("!bootstrap & !g1 & !g2")
+@FeatureEnabled(FeatureEnabled.Feature.MATERIALS)
 public class LessonMaterialsService {
   private final LessonMaterialsRepository materials;
   private final ObjectMapper mapper;
@@ -33,11 +33,11 @@ public class LessonMaterialsService {
         materials.dialogues(lessonId).stream().map(this::dialogue).toList());
   }
 
-  private Dialogue dialogue(Row row) {
+  private Dialogue dialogue(DialogueSource row) {
     try {
-      List<Line> lines = mapper.readValue(row.text("lines_json"), new TypeReference<>() {});
+      List<Line> lines = mapper.readValue(row.linesJson(), new TypeReference<>() {});
       SampleDialogueFormat.validate(lines);
-      return new Dialogue(row.text("id"), row.text("title"), lines);
+      return new Dialogue(row.id(), row.title(), lines);
     } catch (tools.jackson.core.JacksonException | IllegalArgumentException e) {
       throw new ApiException(503, "MATERIAL_UNAVAILABLE", "Học liệu này đang được kiểm tra lại.");
     }

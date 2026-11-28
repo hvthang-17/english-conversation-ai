@@ -41,10 +41,11 @@ class LessonCatalogMysqlTest {
   @DynamicPropertySource
   static void isolatedDatabase(DynamicPropertyRegistry properties) {
     String url = System.getenv("G2_TEST_DB_URL");
-    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:3306/g2_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
+    if (url == null || !url.matches("jdbc:mysql://127\\.0\\.0\\.1:(3306|3307)/g2_test_[0-9a-f]{12}\\?connectionTimeZone=UTC"))
       throw new IllegalStateException("Use a dedicated G2 test schema");
     properties.add("spring.datasource.url", () -> url);
     properties.add("app.mail.enabled", () -> "false");
+    properties.add("server.servlet.session.cookie.secure", () -> false);
     properties.add("app.admin-bootstrap.enabled", () -> "false");
   }
 

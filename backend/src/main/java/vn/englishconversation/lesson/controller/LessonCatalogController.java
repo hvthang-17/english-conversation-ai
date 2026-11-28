@@ -1,6 +1,6 @@
 package vn.englishconversation.lesson.controller;
 
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +12,7 @@ import vn.englishconversation.lesson.service.LessonCatalogService;
 
 @RestController
 @RequestMapping("/api/v1/lessons")
-@Profile("!bootstrap & !g1")
+@FeatureEnabled(FeatureEnabled.Feature.CATALOG)
 public class LessonCatalogController {
   private final LessonCatalogService lessons;
 

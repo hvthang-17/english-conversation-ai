@@ -1,7 +1,7 @@
 package vn.englishconversation.scenario.service;
 
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.common.exception.ApiException;
@@ -9,7 +9,7 @@ import vn.englishconversation.scenario.dto.*;
 import vn.englishconversation.scenario.repository.CatalogRepository;
 
 @Service
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 @Transactional(readOnly = true)
 public class CatalogService {
   private final CatalogRepository catalog;

@@ -1,7 +1,7 @@
 package vn.englishconversation.lesson.service;
 
 import java.util.Locale;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
@@ -15,7 +15,7 @@ import vn.englishconversation.scenario.service.CatalogService;
 import vn.englishconversation.user.repository.UserRepository;
 
 @Service
-@Profile("!bootstrap & !g1")
+@FeatureEnabled(FeatureEnabled.Feature.CATALOG)
 public class LessonCatalogService {
   private final LessonCatalogRepository lessons;
   private final UserRepository users;
