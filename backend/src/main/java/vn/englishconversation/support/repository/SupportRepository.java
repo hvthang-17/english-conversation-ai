@@ -3,13 +3,13 @@ package vn.englishconversation.support.repository;
 import static vn.englishconversation.support.dto.SupportData.*;
 
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Repository;
 import vn.englishconversation.common.repository.JdbcStore;
 import vn.englishconversation.common.repository.JdbcStore.Row;
 
 @Repository
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.SUPPORT)
 public class SupportRepository {
   private static final String TICKETS = """
       SELECT t.*, DATE_FORMAT(t.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created,
@@ -39,11 +39,11 @@ public class SupportRepository {
         .map(row -> row.text("excerpt"));
   }
 
-  public Optional<Row> prior(long owner, String key) {
+  private Optional<Row> priorRows(long owner, String key) {
     return db.find(TICKETS + " WHERE t.user_id=? AND t.client_request_id=?", owner, key);
   }
 
-  public Optional<Row> ticket(long id, Long owner, boolean lock) {
+  private Optional<Row> ticketRows(long id, Long owner, boolean lock) {
     String query = TICKETS + " WHERE t.id=?" + (owner == null ? "" : " AND t.user_id=?") + (lock ? " FOR UPDATE" : "");
     return owner == null ? db.find(query,id) : db.find(query,id,owner);
   }
@@ -88,7 +88,7 @@ public class SupportRepository {
         db.find("SELECT id FROM session_feedback WHERE session_id=? FOR SHARE",source.id()).orElseThrow().number("id");
   }
 
-  public Optional<Row> priorMessage(long ticket, long author, String key) {
+  private Optional<Row> priorMessageRows(long ticket, long author, String key) {
     return db.find("SELECT id,body FROM support_ticket_messages WHERE ticket_id=? AND author_id=? AND client_request_id=?",
         ticket,author,key);
   }
@@ -143,13 +143,27 @@ public class SupportRepository {
         """,owner,ticket,"support-reply:"+message);
   }
 
-  public static Ticket view(Row row) {
+  private static Ticket view(Row row) {
     return new Ticket(row.text("id"),Kind.valueOf(row.text("kind")),Status.valueOf(row.text("status")),
         row.text("title"),row.text("redacted_excerpt"),row.text("source_removed_at")!=null,
         row.text("created"),row.text("updated"));
   }
 
-  public static AdminTicket adminView(Row row) {
+  private static AdminTicket adminView(Row row) {
     return new AdminTicket(view(row),row.text("assigned_admin_id"));
   }
+
+  public record TicketState(String id,long userId,String kind,String status,String title,String redactedExcerpt,String sourceRemovedAt,String created,String updated,Long assignedAdminId,String requestFingerprint) {}
+  private static TicketState mapTicketState(Row row) { return new TicketState(row.text("id"),row.number("user_id"),row.text("kind"),row.text("status"),row.text("title"),row.text("redacted_excerpt"),row.text("source_removed_at"),row.text("created"),row.text("updated"),(row.data().get("assigned_admin_id")==null ? null : ((Number)row.data().get("assigned_admin_id")).longValue()),row.text("request_fingerprint")); }
+  public record PriorMessage(String body) {}
+  private static PriorMessage mapPriorMessage(Row row) { return new PriorMessage(row.text("body")); }
+  public java.util.Optional<TicketState> prior(long owner,String key) { return priorRows(owner,key).map(SupportRepository::mapTicketState); }
+  public java.util.Optional<TicketState> ticket(long id,Long owner,boolean lock) { return ticketRows(id,owner,lock).map(SupportRepository::mapTicketState); }
+  public java.util.Optional<PriorMessage> priorMessage(long ticket,long author,String key) { return priorMessageRows(ticket,author,key).map(SupportRepository::mapPriorMessage); }
+
+  public static Ticket view(TicketState row) {
+    return new Ticket(row.id(),Kind.valueOf(row.kind()),Status.valueOf(row.status()),row.title(),
+      row.redactedExcerpt(),row.sourceRemovedAt()!=null,row.created(),row.updated());
+  }
+  public static AdminTicket adminView(TicketState row) { return new AdminTicket(view(row), row.assignedAdminId()==null ? null : row.assignedAdminId().toString()); }
 }

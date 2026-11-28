@@ -4,7 +4,7 @@ import static vn.englishconversation.support.dto.SupportData.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +12,7 @@ import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.support.service.SupportService;
 
 @RestController
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.SUPPORT)
 public class SupportController {
   private static final String USER = "/api/v1/support/tickets";
   private static final String ADMIN = "/api/v1/admin/support/tickets";

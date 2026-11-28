@@ -9,19 +9,19 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.englishconversation.auth.security.AccountPrincipal;
 import vn.englishconversation.auth.service.AccountService;
 import vn.englishconversation.admin.repository.AdminAudit;
 import vn.englishconversation.common.exception.ApiException;
-import vn.englishconversation.common.repository.JdbcStore.Row;
+import vn.englishconversation.support.repository.SupportRepository.TicketState;
 import vn.englishconversation.learning.repository.LearningStore;
 import vn.englishconversation.support.repository.SupportRepository;
 
 @Service
-@Profile("g6")
+@FeatureEnabled(FeatureEnabled.Feature.SUPPORT)
 public class SupportService {
   private static final Pattern EMAIL = Pattern.compile("(?iu)[\\p{L}\\p{N}._%+\\-]+@[\\p{L}\\p{N}.\\-]+\\.[\\p{L}]{2,}");
   private static final Pattern NUMBER = Pattern.compile("(?<![\\p{L}\\p{N}])\\+?\\d(?:[ .()\\-]*\\d){6,}(?![\\p{L}\\p{N}])");
@@ -64,7 +64,7 @@ public class SupportService {
     String fingerprint = hash(input.toString());
     var prior = repository.prior(actor.id(),input.clientRequestId().toString());
     if (prior.isPresent()) {
-      if (!fingerprint.equals(prior.get().text("request_fingerprint"))) throw reused();
+      if (!fingerprint.equals(prior.get().requestFingerprint())) throw reused();
       return SupportRepository.view(prior.get());
     }
     String excerpt = null;
@@ -103,13 +103,13 @@ public class SupportService {
   @Transactional
   public AdminTicket assign(AccountPrincipal actor,long id,Assignment input) {
     accounts.requireAdminForWrite(actor);
-    Row row = ticket(id,null,true);
+    TicketState row = ticket(id,null,true);
     long target = input.adminId() == null ? actor.id() : input.adminId();
     Long previous = assigned(row);
     if (Objects.equals(previous,target)) return SupportRepository.adminView(row);
     if (!Objects.equals(previous,input.expectedAdminId()))
       throw new ApiException(409,"TICKET_ASSIGNMENT_CHANGED","Người phụ trách đã thay đổi. Hãy tải lại phiếu.");
-    if ("CLOSED".equals(row.text("status")))
+    if ("CLOSED".equals(row.status()))
       throw new ApiException(409,"TICKET_CLOSED","Phiếu đã đóng.");
     if (target != actor.id() && !repository.activeAdmin(target))
       throw new ApiException(422,"ASSIGNEE_UNAVAILABLE","Chọn một quản trị viên đang hoạt động.");
@@ -129,20 +129,20 @@ public class SupportService {
   public void reply(AccountPrincipal actor, long id, Reply input, boolean admin) {
     if (admin) accounts.requireAdminForWrite(actor);
     else lockLearner(actor);
-    Row ticket = ticket(id,admin ? null : actor.id(),true);
+    TicketState ticket = ticket(id,admin ? null : actor.id(),true);
     if (admin) requireAssignee(actor,ticket);
     String body = redact(input.body().strip());
     String key = input.clientRequestId().toString();
     var prior = repository.priorMessage(id,actor.id(),key);
     if (prior.isPresent()) {
-      if (!body.equals(prior.get().text("body"))) throw reused();
+      if (!body.equals(prior.get().body())) throw reused();
       return;
     }
-    if ("CLOSED".equals(ticket.text("status")))
+    if ("CLOSED".equals(ticket.status()))
       throw new ApiException(409,"TICKET_CLOSED","Phiếu đã đóng.");
     long message = repository.addMessage(id,actor.id(),admin ? "ADMIN" : "LEARNER",body,key);
     if (admin) {
-      repository.notifyReply(ticket.number("user_id"),id,message);
+      repository.notifyReply(ticket.userId(),id,message);
       audit.record(actor.id(),"SUPPORT_REPLIED","SUPPORT_TICKET",id);
     }
   }
@@ -152,7 +152,7 @@ public class SupportService {
     accounts.requireAdminForWrite(actor);
     var row = ticket(id,null,true);
     requireAssignee(actor,row);
-    var current = Status.valueOf(row.text("status"));
+    var current = Status.valueOf(row.status());
     if (current == desired) return SupportRepository.adminView(row);
     if (desired.ordinal() != current.ordinal()+1)
       throw new ApiException(409,"INVALID_TICKET_TRANSITION","Phiếu cần được chuyển theo thứ tự xử lý.");
@@ -161,16 +161,16 @@ public class SupportService {
     return SupportRepository.adminView(ticket(id,null,false));
   }
 
-  private static Long assigned(Row row) {
-    return row.text("assigned_admin_id") == null ? null : row.number("assigned_admin_id");
+  private static Long assigned(TicketState row) {
+    return row.assignedAdminId();
   }
 
-  private static void requireAssignee(AccountPrincipal actor,Row row) {
+  private static void requireAssignee(AccountPrincipal actor,TicketState row) {
     if (!Objects.equals(assigned(row),actor.id()))
       throw new ApiException(403,"TICKET_ASSIGNEE_REQUIRED","Chỉ người phụ trách được xử lý phiếu.");
   }
 
-  private Row ticket(long id, Long owner, boolean lock) {
+  private TicketState ticket(long id, Long owner, boolean lock) {
     return repository.ticket(id,owner,lock)
         .orElseThrow(() -> new ApiException(404,"TICKET_NOT_FOUND","Không tìm thấy phiếu hỗ trợ."));
   }
