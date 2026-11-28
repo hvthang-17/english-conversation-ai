@@ -8,13 +8,13 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.Flow;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.*;
 import vn.englishconversation.ai.config.ChatSettings;
 
 @Component
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class GeminiTextProvider implements TextProvider {
   private final ChatSettings settings;
   private final HttpClient client;
@@ -85,7 +85,7 @@ public class GeminiTextProvider implements TextProvider {
                 prompt.waveAudio() == null ? 0.6 : 0.0));
     if (!prompt.schema().isEmpty()) {
       generation.put("responseMimeType", "application/json");
-      generation.put("responseJsonSchema", prompt.schema());
+      if (!prompt.schemaInInstruction()) generation.put("responseJsonSchema", prompt.schema());
     }
     return json.writeValueAsString(
         Map.of(
@@ -128,7 +128,8 @@ public class GeminiTextProvider implements TextProvider {
       if (status >= 500) return Outcome.failure("PROVIDER_UNCERTAIN", true, false, 0);
       if (status < 200 || status >= 300)
         return Outcome.failure(
-            status == 401 || status == 403 ? "PROVIDER_AUTH" : "PROVIDER_REQUEST_REJECTED",
+            status == 401 || status == 403 ? "PROVIDER_AUTH" :
+                status == 400 ? "PROVIDER_INVALID_ARGUMENT" : "PROVIDER_REQUEST_REJECTED",
             false,
             false,
             0);

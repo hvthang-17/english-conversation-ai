@@ -1,12 +1,12 @@
 package vn.englishconversation.ai.config;
 
 import java.math.BigDecimal;
-import org.springframework.context.annotation.Profile;
+import vn.englishconversation.config.features.FeatureEnabled;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!bootstrap")
+@FeatureEnabled(FeatureEnabled.Feature.CORE)
 public class ChatSettings {
     public final boolean enabled;
     public final String apiKey, model, fingerprintSecret, pricingReference;

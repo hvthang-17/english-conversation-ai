@@ -14,7 +14,11 @@ public interface TextProvider {
 
   record Prompt(
       String instruction, List<Text> history, int maxOutputTokens, Map<String, Object> schema,
-      byte[] waveAudio) {
+      byte[] waveAudio, boolean schemaInInstruction) {
+    public Prompt(String instruction, List<Text> history, int maxOutputTokens, Map<String, Object> schema,
+        byte[] waveAudio) {
+      this(instruction, history, maxOutputTokens, schema, waveAudio, false);
+    }
     public Prompt(String instruction, List<Text> history, int maxOutputTokens, Map<String, Object> schema) {
       this(instruction, history, maxOutputTokens, schema, null);
     }
